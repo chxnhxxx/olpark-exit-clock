@@ -1,0 +1,19 @@
+name: probe-parking-interval
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        default: '20'
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Record parking_sum every 30s
+        run: |
+          n=$(( ${{ inputs.minutes }} * 2 ))
+          for i in $(seq 1 $n); do
+            v=$(curl -s -m 10 'https://www.ksponco.or.kr/online/main/parkingorsApi.do?apiKey=PARKING21803504' | tr -d '\n ')
+            echo "PROBE $(TZ=Asia/Seoul date +%H:%M:%S) $v"
+            sleep 30
+          done
