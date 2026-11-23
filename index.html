@@ -133,8 +133,12 @@ async function loadShows(){
   const today=d.toISOString().slice(0,10);
   const local=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
   try{
-    const r=await fetch(SCHED,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nowYM:ym,plcCd:''})});
-    const j=await r.json(); const all=[].concat(...(Array.isArray(j)?j:[j]));
+    // 1) 미리 받아 둔 schedule.json (브라우저에서 기관 일정 API를 직접 부르면 교차 출처 사전요청이 막힘)
+    // 2) 없으면 기관 API 직접 호출
+    let j=null;
+    try{ const s=await fetch('schedule.json?'+Date.now()); if(s.ok){ const m=await s.json(); if(m&&m.months&&m.months[ym]) j=m.months[ym]; } }catch(_){}
+    if(!j){ const r=await fetch(SCHED,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nowYM:ym,plcCd:''})}); j=await r.json(); }
+    const all=[].concat(...(Array.isArray(j)?j:[j]));
     const seen=new Set();
     shows = all.filter(e=>e.beginDt<=local && e.endDt>=local && BIG_VENUES.test(e.plc||''))
       .filter(e=>{const k=e.title+e.plc; if(seen.has(k)) return false; seen.add(k); return true;})
