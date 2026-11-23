@@ -88,10 +88,12 @@ h1#head{font-size:32px;line-height:1.3;font-weight:750;letter-spacing:-.02em;mar
 section.sec{padding:8px 0 4px}
 .card{background:var(--surface);border:var(--cardborder);border-radius:20px;padding:20px;margin-bottom:12px;box-shadow:var(--shadow)}
 .card h2{font-size:19px;line-height:1.4;font-weight:700;letter-spacing:-.01em;margin:0}
-.lead{font-size:18px;font-weight:700;margin:6px 0 2px}
+.lead{font-size:20px;font-weight:500;line-height:1.45;margin:6px 0 4px}.lead b{font-weight:800}
+.chartbox{position:relative;margin-top:14px;touch-action:pan-y}
+.ctip{position:absolute;top:-6px;background:var(--ink);color:var(--bg);font-size:15px;font-weight:600;padding:6px 10px;border-radius:10px;white-space:nowrap;pointer-events:none}
 .lead .num{color:var(--accent)}
 .cap{font-size:15px;color:var(--ink2);margin:8px 0 0}
-svg.chart{width:100%;height:auto;display:block;margin-top:10px;overflow:visible}
+svg.chart{width:100%;height:auto;display:block;overflow:visible;cursor:crosshair}
 .show{padding:16px 0;border-top:1px solid var(--line)}
 .show:first-of-type{border-top:0;padding-top:12px}
 .show .t{font-size:19px;font-weight:700;line-height:1.4}
@@ -143,7 +145,7 @@ footer{padding:8px 0 calc(28px + env(safe-area-inset-bottom,0px));font-size:15px
   <button class="alarm" id="alarm" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 004 0"/></svg><span><span id="alarmTxt">출발 시간 되면 알려 주세요</span><small id="alarmSub">화면을 켜 두시면 진동과 소리로 알려 드려요</small></span></button>
   <button class="retry" id="retry">다시 확인</button>
   <div class="spacer"></div>
-  <a class="peek" href="#flow"><span>최근 1시간 보기</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></a>
+  <a class="peek" href="#flow"><span>앞으로 30분 흐름 보기</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></a>
  </div>
 </div>
 
@@ -152,7 +154,7 @@ footer{padding:8px 0 calc(28px + env(safe-area-inset-bottom,0px));font-size:15px
     <div class="card">
       <h2>1분마다 주차장을 나간 차</h2>
       <p class="lead" id="lead">몇 분 지나면 그래프가 그려져요</p>
-      <svg class="chart" id="chart" viewBox="0 0 340 200" role="img" aria-label="최근 1시간 동안 1분마다 주차장을 나간 차"></svg>
+      <div class="chartbox"><svg class="chart" id="chart" viewBox="0 0 340 210" role="img" aria-label="지난 30분 동안 1분마다 주차장을 나간 차와 앞으로 30분 예상"></svg><div class="ctip" id="chartTip" hidden></div></div>
       <p class="cap" id="chartCap">1분에 12대 넘게 나가면 출구에 줄이 생겨요. 빨간 부분이 그때예요.</p>
     </div>
   </section>
@@ -351,57 +353,93 @@ function renderShows(){
       <div class="busy num">${fmt(j0)} ~ ${fmt(j1)} 나가는 길 붐빔</div></div>`;
   }).join('');
 }
+// 2024-07-20 공연 밤 곡선에서, 몰리기 시작한 뒤 k분째의 1분당 출차(예상 모양)
+const PAT=(()=>{ const v=window.PATTERN_2024.d20.v; let on=0; for(let i=1;i<v.length;i++){ if(v[i-1]-v[i]>=SURGE){ on=i; break; } }
+  return k=>{ const x=on+k/5; const i=Math.floor(x); if(i<1||i>=v.length) return 0; const a=Math.max(0,(v[i-1]-v[i])/5), b=i+1<v.length?Math.max(0,(v[i]-v[i+1])/5):0; return a+(b-a)*(x-i); }; })();
+let chartState=null;
 function chart(s){
-  const svg=$('chart'), t=now(), W=340,H=200,L=30,R=12,T=30,B=26;
-  const series=rateSeries(t,60), valid=series.filter(p=>p.r!==null);
-  const goT = s.go && s.go>t ? s.go : null;
-  const x0=t-60*MIN, x1=Math.max(t, goT? goT+4*MIN : t);
-  const yMax=Math.max(30, ...valid.map(p=>p.r));
-  const X=x=>L+(x-x0)/(x1-x0)*(W-L-R), Y=v=>T+(1-v/yMax)*(H-T-B);
-  let g='';
-  // 막히는 구간
-  g+=`<rect x="${L}" y="${T}" width="${W-L-R}" height="${Y(JAM_PER_MIN)-T}" fill="var(--jam-t)" opacity=".75"/>`;
-  g+=`<line x1="${L}" x2="${W-R}" y1="${Y(JAM_PER_MIN)}" y2="${Y(JAM_PER_MIN)}" stroke="var(--jam)" stroke-opacity=".55"/>`;
-  g+=`<text x="${L+8}" y="${T+17}" font-size="13" font-weight="700" fill="var(--jam)" stroke="var(--surface)" stroke-width="3" paint-order="stroke">막히는 구간</text>`;
-  g+=`<line x1="${L}" x2="${W-R}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)"/>`;
-  g+=`<text x="${L-6}" y="${Y(0)+4}" font-size="13" text-anchor="end" fill="var(--ink3)">0</text><text x="${L-6}" y="${Y(JAM_PER_MIN)+4}" font-size="13" font-weight="700" text-anchor="end" fill="var(--jam)">12</text>`;
-  // 미래 구역
-  if(x1>t){ g+=`<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="6" fill="var(--surface2)"/></pattern></defs><rect x="${X(t)}" y="${T}" width="${X(x1)-X(t)}" height="${H-T-B}" fill="url(#hatch)" opacity=".8"/>`; }
-  // x축
-  g+=`<text x="${X(x0)}" y="${H-6}" font-size="13" fill="var(--ink3)">${fmt(x0)}</text><text x="${X(t-30*MIN)}" y="${H-6}" font-size="13" text-anchor="middle" fill="var(--ink3)">${fmt(t-30*MIN)}</text>`;
-  g+=`<line x1="${X(t)}" x2="${X(t)}" y1="${H-B}" y2="${H-B+4}" stroke="var(--ink)" stroke-width="1.5"/><text x="${X(t)}" y="${H-6}" font-size="13" font-weight="800" text-anchor="${x1>t?'middle':'end'}" fill="var(--ink)">지금</text>`;
-  if(valid.length<3){
-    g+=`<text x="${(L+W-R)/2}" y="${Y(5)}" font-size="15" font-weight="600" text-anchor="middle" fill="var(--ink3)">몇 분 지나면 그래프가 그려져요</text>`;
-    svg.innerHTML=g; $('lead').textContent='주차장을 나가는 차를 세는 중이에요'; return;
+  // 참고: 날씨 앱의 '다음 1시간 강수' 그래프(지난 기록은 실선, 앞으로는 예상 점선, 세로축은 숫자 대신 '약함·보통·강함')
+  const svg=$('chart'), t=now(), W=340,H=210,L=40,R=10,T=34,B=28;
+  const onset=surgeOnset();
+  const past=rateSeries(t,30), valid=past.filter(p=>p.r!==null);
+  // 앞으로 30분 예상: 2024 곡선 모양을 오늘 실제 수준에 맞춰 늘이거나 줄임
+  let future=[];
+  if(onset && ['jam','easing','go'].includes(s.tone)){
+    const k0=(t-onset)/MIN; const recent=valid.slice(-8);
+    const pAvg=recent.reduce((a,p)=>a+PAT((p.t-onset)/MIN),0)/Math.max(1,recent.length);
+    const lAvg=recent.reduce((a,p)=>a+p.r,0)/Math.max(1,recent.length);
+    const sc=pAvg>0.5?Math.min(2,Math.max(0.5,lAvg/pAvg)):1;
+    const last=past[past.length-1].r;
+    const fN=Math.round((Math.max(t+30*MIN,(s.go&&s.go>t)?s.go+6*MIN:0)-t)/MIN); for(let m=0;m<=fN;m++){ let r=PAT(k0+m)*sc; if(m<4&&last!==null) r=last+(r-last)*(m/4); future.push({t:t+m*MIN,r:Math.max(0,r)}); }
   }
-  // 영역(끊긴 곳은 나눠 그림)
-  const segs=[]; let cur=[]; for(const p of series){ if(p.r===null){ if(cur.length) segs.push(cur); cur=[]; } else cur.push(p); } if(cur.length) segs.push(cur);
-  const pathOf=seg=>{ const pts=seg.map(p=>[X(p.t),Y(p.r)]); let d=`M${pts[0][0].toFixed(1)},${Y(0)} L${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-    for(let i=1;i<pts.length;i++){ const [xa,ya]=pts[i-1],[xb,yb]=pts[i], cx=(xa+xb)/2; d+=` C${cx.toFixed(1)},${ya.toFixed(1)} ${cx.toFixed(1)},${yb.toFixed(1)} ${xb.toFixed(1)},${yb.toFixed(1)}`; }
-    return {area:d+` L${pts[pts.length-1][0].toFixed(1)},${Y(0)} Z`, line:d.replace(/^M[^L]+L/,'M')}; };
-  g+=`<defs><clipPath id="below"><rect x="0" y="${Y(JAM_PER_MIN)}" width="${W}" height="${H}"/></clipPath><clipPath id="above"><rect x="0" y="0" width="${W}" height="${Y(JAM_PER_MIN)}"/></clipPath></defs>`;
-  for(const seg of segs){ if(seg.length<2) continue; const p=pathOf(seg);
-    g+=`<path d="${p.area}" fill="var(--flow)" fill-opacity=".28" clip-path="url(#below)"/><path d="${p.area}" fill="var(--jam)" fill-opacity=".45" clip-path="url(#above)"/>`;
-    g+=`<path d="${p.line}" fill="none" stroke="var(--flow)" stroke-width="2.25" stroke-linejoin="round" clip-path="url(#below)"/><path d="${p.line}" fill="none" stroke="var(--jam)" stroke-width="2.25" stroke-linejoin="round" clip-path="url(#above)"/>`; }
-  for(let i=1;i<segs.length;i++){ const a=segs[i-1][segs[i-1].length-1].t, b=segs[i][0].t; if(b-a>=6*MIN) g+=`<rect x="${X(a)}" y="${T}" width="${X(b)-X(a)}" height="${H-T-B}" fill="url(#hatch)"/><text x="${X((a+b)/2)}" y="${Y(4)}" font-size="13" text-anchor="middle" fill="var(--ink3)">정보 없음</text>`; }
-  // 최고점
-  const peak=valid.reduce((m,p)=>p.r>m.r?p:m,valid[0]);
-  if(peak.r>=JAM_PER_MIN && Math.abs(peak.t-t)>8*MIN) g+=`<text x="${X(peak.t)}" y="${Y(peak.r)-8}" font-size="13" font-weight="600" text-anchor="middle" fill="var(--ink2)">최고 ${Math.round(peak.r)}대</text>`;
+  const goAhead=(s.go&&s.go>t)?s.go:0; const x0=t-30*MIN, x1=Math.max(t+30*MIN, goAhead+6*MIN);
+  const LV=[{v:6,l:'보통'},{v:JAM_PER_MIN,l:'막힘'}];
+  const yMax=Math.max(24,...valid.map(p=>p.r),...future.map(p=>p.r))*1.08;
+  const X=x=>L+(x-x0)/(x1-x0)*(W-L-R), Y=v=>T+(1-v/yMax)*(H-T-B);
+  let g=`<defs><clipPath id="cAbove"><rect x="0" y="0" width="${W}" height="${Y(JAM_PER_MIN)}"/></clipPath><clipPath id="cBelow"><rect x="0" y="${Y(JAM_PER_MIN)}" width="${W}" height="${H}"/></clipPath>
+    <linearGradient id="gPast" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--flow)" stop-opacity=".45"/><stop offset="1" stop-color="var(--flow)" stop-opacity=".05"/></linearGradient>
+    <linearGradient id="gJam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--jam)" stop-opacity=".55"/><stop offset="1" stop-color="var(--jam)" stop-opacity=".15"/></linearGradient></defs>`;
+  // 단계선(숫자 대신 말)
+  for(const lv of LV){ const y=Y(lv.v), jam=lv.v===JAM_PER_MIN;
+    g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${jam?'var(--jam)':'var(--line)'}" stroke-opacity="${jam?.5:1}" stroke-dasharray="${jam?'':'2 4'}"/>`;
+    g+=`<text x="${L-8}" y="${y+5}" font-size="14" font-weight="${jam?800:600}" text-anchor="end" fill="${jam?'var(--jam)':'var(--ink3)'}">${lv.l}</text>`; }
+  g+=`<line x1="${L}" x2="${W-R}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)" stroke-width="1.5"/>`;
+  // 지금 이후 배경
+  g+=`<rect x="${X(t)}" y="${T-6}" width="${X(x1)-X(t)}" height="${H-B-T+6}" fill="var(--surface2)" opacity=".55" rx="6"/>`;
+  g+=`<text x="${X(t)+8}" y="${T+8}" font-size="13" font-weight="600" fill="var(--ink3)">${future.length?'예상':'앞으로'}</text>`;
+  // x축
+  const xt=[[x0,'30분 전'],[t,'지금'],[x1,Math.round((x1-t)/MIN)+'분 뒤']];
+  for(const [x,l] of xt){ const now_=x===t; g+=`<text x="${X(x)}" y="${H-7}" font-size="13" font-weight="${now_?800:500}" text-anchor="${x===x0?'start':x===x1?'end':'middle'}" fill="${now_?'var(--ink)':'var(--ink3)'}">${l}</text>`; }
+  g+=`<line x1="${X(t)}" x2="${X(t)}" y1="${T-6}" y2="${H-B}" stroke="var(--ink)" stroke-width="1.5"/>`;
+  const smooth=pts=>{ let d=`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`; for(let i=1;i<pts.length;i++){ const [xa,ya]=pts[i-1],[xb,yb]=pts[i],cx=(xa+xb)/2; d+=` C${cx.toFixed(1)},${ya.toFixed(1)} ${cx.toFixed(1)},${yb.toFixed(1)} ${xb.toFixed(1)},${yb.toFixed(1)}`; } return d; };
+  if(valid.length<3 && !future.length){
+    g+=`<text x="${(L+X(t))/2}" y="${Y(4)}" font-size="15" font-weight="600" text-anchor="middle" fill="var(--ink3)">몇 분 지나면 그려져요</text>`;
+  }
+  // 지난 30분(실측): 끊긴 곳은 나눠 그림
+  const segs=[]; let cur=[]; for(const p of past){ if(p.r===null){ if(cur.length) segs.push(cur); cur=[]; } else cur.push(p); } if(cur.length) segs.push(cur);
+  for(const seg of segs){ if(seg.length<2) continue; const pts=seg.map(p=>[X(p.t),Y(p.r)]), line=smooth(pts), area=line+` L${pts[pts.length-1][0].toFixed(1)},${Y(0)} L${pts[0][0].toFixed(1)},${Y(0)} Z`;
+    g+=`<path d="${area}" fill="url(#gPast)" clip-path="url(#cBelow)"/><path d="${area}" fill="url(#gJam)" clip-path="url(#cAbove)"/>`;
+    g+=`<path d="${line}" fill="none" stroke="var(--flow)" stroke-width="2.5" stroke-linecap="round" clip-path="url(#cBelow)"/><path d="${line}" fill="none" stroke="var(--jam)" stroke-width="2.5" stroke-linecap="round" clip-path="url(#cAbove)"/>`; }
+  // 앞으로 30분(예상): 점선
+  if(future.length){ const pts=future.map(p=>[X(p.t),Y(p.r)]), line=smooth(pts);
+    g+=`<path d="${line} L${pts[pts.length-1][0].toFixed(1)},${Y(0)} L${pts[0][0].toFixed(1)},${Y(0)} Z" fill="var(--ink3)" opacity=".10"/>`;
+    g+=`<path d="${line}" fill="none" stroke="var(--ink2)" stroke-width="2" stroke-dasharray="1 5" stroke-linecap="round"/>`; }
+  // 출발 깃발
+  const goT = s.go && s.go>t ? s.go : (s.tone==='go'?t:null);
+  if(goT && goT<=x1){ const fx=X(goT), label=goT>t?`${fmt(goT)} 출발`:'지금 출발', w=label.length*12.5+20, bx=Math.min(W-w,Math.max(L,fx-w/2));
+    g+=`<line x1="${fx}" x2="${fx}" y1="${T-6}" y2="${H-B}" stroke="var(--go)" stroke-width="2"/>`;
+    g+=`<rect x="${bx}" y="${T-34}" width="${w}" height="26" rx="13" fill="var(--go)"/><text x="${bx+w/2}" y="${T-16}" font-size="14" font-weight="800" text-anchor="middle" fill="var(--on-accent)">${label}</text>`; }
   // 지금 점
-  const lastP=series[series.length-1];
-  if(lastP.r!==null){ const c=lastP.r>=JAM_PER_MIN?'var(--jam)':'var(--flow)';
-    g+=`<circle cx="${X(t)}" cy="${Y(lastP.r)}" r="5.5" fill="${c}" stroke="var(--surface)" stroke-width="2.5"/>`;
-    g+=`<text x="${X(t)-9}" y="${Y(lastP.r)-10}" font-size="14" font-weight="800" text-anchor="end" fill="var(--ink)">${Math.round(lastP.r)}대</text>`; }
-  // 추천 출발 깃발
-  const flagT = goT || (s.tone==='go' ? t : null);
-  if(flagT){ const fx=X(flagT), label = goT?`${fmt(goT)} 출발`:'지금 출발', w=label.length*12+18, bx=Math.min(W-w, Math.max(0, fx-w/2));
-    g+=`<line x1="${fx}" x2="${fx}" y1="${T-4}" y2="${H-B}" stroke="var(--go)" stroke-width="1.75" stroke-dasharray="4 3"/>`;
-    g+=`<rect x="${bx}" y="${T-28}" width="${w}" height="24" rx="12" fill="var(--go)"/><text x="${bx+w/2}" y="${T-11}" font-size="13" font-weight="800" text-anchor="middle" fill="var(--on-accent)">${label}</text>`; }
+  const lastP=past[past.length-1];
+  if(lastP.r!==null){ const c=lastP.r>=JAM_PER_MIN?'var(--jam)':'var(--flow)'; g+=`<circle cx="${X(t)}" cy="${Y(lastP.r)}" r="6" fill="${c}" stroke="var(--surface)" stroke-width="2.5"/>`; }
+  // 손가락으로 짚으면 값 보기
+  g+=`<g id="hov" style="display:none"><line id="hovL" y1="${T-6}" y2="${H-B}" stroke="var(--ink2)" stroke-width="1"/><circle id="hovC" r="5" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/></g>`;
   svg.innerHTML=g;
-  const r=lastP.r!==null?Math.round(lastP.r):null;
-  $('lead').innerHTML = r===null?'주차장을 나가는 차를 세는 중이에요':`지금 1분에 <span class="num">${r}대</span>씩 나가요 <span style="color:var(--ink3);font-weight:600">· 12대 넘으면 막혀요</span>`;
-  $('chartCap').textContent = '1분에 12대 넘게 나가면 출구에 줄이 생겨요. 빨간 부분이 그때예요.' + (demo?' 예시는 5분 단위 기록을 1분으로 나눠 그렸어요.':'');
+  chartState={X,Y,x0,x1,L,R,W,past,future,t};
+  // 헤드라인(날씨 앱처럼 한 문장)
+  const r=lastP.r!==null?Math.round(lastP.r):null; let lead;
+  if(s.tone==='jam'||s.tone==='easing') lead=`<b>${fmt(s.go)}쯤 줄이 풀려요</b>`;
+  else if(s.tone==='go') lead='<b>지금은 줄이 거의 없어요</b>';
+  else if(r!==null) lead=`<b>지금 ${r>=JAM_PER_MIN?'나가는 차가 많아요':r>=6?'나가는 차가 조금 있어요':'한산해요'}</b>`;
+  else lead='<b>주차장을 나가는 차를 세는 중이에요</b>';
+  if(r!==null) lead+=` <span style="color:var(--ink3);font-weight:600">· 지금 1분에 <span class="num">${r}</span>대</span>`;
+  $('lead').innerHTML=lead;
+  $('chartCap').textContent = (future.length?'점선은 2024년 공연 밤 흐름으로 본 예상이에요. ':'')+'1분에 12대 넘게 나가면 출구에 줄이 생겨요.'+(demo?' 예시는 5분 단위 기록을 1분으로 나눠 그렸어요.':'');
 }
+// 그래프를 누르거나 끌면 그 시각의 값
+(function(){
+  const svg=$('chart'), tip=$('chartTip');
+  const show=e=>{ if(!chartState) return; const {X,Y,x0,x1,L,R,W,past,future,t}=chartState; const rc=svg.getBoundingClientRect();
+    const sx=(e.clientX-rc.left)/rc.width*W; if(sx<L||sx>W-R){ hide(); return; }
+    const tm=x0+(sx-L)/(W-L-R)*(x1-x0); const all=past.concat(future.slice(1)).filter(p=>p.r!==null); if(!all.length) return;
+    const p=all.reduce((b,q)=>Math.abs(q.t-tm)<Math.abs(b.t-tm)?q:b,all[0]); const isF=p.t>t;
+    const h=$('hov'); h.style.display=''; $('hovL').setAttribute('x1',X(p.t)); $('hovL').setAttribute('x2',X(p.t)); $('hovC').setAttribute('cx',X(p.t)); $('hovC').setAttribute('cy',Y(p.r));
+    const lv=p.r>=JAM_PER_MIN?'막힘':p.r>=6?'보통':'한산';
+    tip.innerHTML=`<b class="num">${fmt(p.t)}</b> ${isF?'예상 ':''}1분에 <b class="num">${Math.round(p.r)}대</b> · ${lv}`; tip.hidden=false;
+    const px=X(p.t)/W*rc.width; tip.style.left=Math.min(rc.width-tip.offsetWidth, Math.max(0, px-tip.offsetWidth/2))+'px'; };
+  const hide=()=>{ const h=$('hov'); if(h) h.style.display='none'; tip.hidden=true; };
+  svg.addEventListener('pointermove',show); svg.addEventListener('pointerdown',show); svg.addEventListener('pointerleave',hide);
+})();
 function mini(tone){
   if(!['jam','easing','go'].includes(tone)){ $('mini').style.display='none'; return; }
   const ser=rateSeries(now(),15).slice(1); const box=$('mini');
