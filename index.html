@@ -5,147 +5,223 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>올팍 출차시계</title>
 <meta name="description" content="올림픽공원 공연이 끝난 뒤, 지금 주차장에서 나가면 막히는지와 언제 출발하면 좋은지 알려 줍니다.">
-<meta name="theme-color" content="#F4F3EF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0D0F10" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#EEF1F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A1017" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
+/* ── 올팍 출차시계 · 브랜드 토큰 ─────────────────────────────
+   방향: 주차 유도 안내판(여유·혼잡·만차)처럼 한눈에 읽히는 공공 안내.
+   차분한 푸른 회색 바탕 + 주차 표지판 파랑(브랜드) + 상태색 4가지.
+   모든 글자색은 바탕·면 위에서 4.5:1 이상. */
 :root{
-  --bg:#F4F3EF;--surface:#FFFFFF;--surface2:#ECEAE4;--line:#DEDBD3;--ink:#15181A;--ink2:#4A5054;--ink3:#676D71;
-  --shadow:0 1px 2px rgba(20,22,24,.06),0 4px 16px rgba(20,22,24,.06);--shadow-hero:0 8px 28px rgba(20,22,24,.10);--cardborder:0;
-  --on-accent:#fff;
-  --show:#4B4FC4;--show-t:#ECECFA; --soon:#9A5700;--soon-t:#FCF1DE; --jam:#C2271E;--jam-t:#FCE9E7;
-  --easing:#0C7166;--easing-t:#E3F4F1; --go:#12723A;--go-t:#E4F4E8; --calm:#4A5560;--calm-t:#ECEEF0;
-  --flow:#0C7166;
-  --accent:var(--calm);--tint:var(--calm-t);
+  --bg:#EEF1F4;--surface:#FFFFFF;--surface2:#E5EAEF;--line:#D3DBE3;--line2:#C3CDD7;
+  --ink:#0F1B26;--ink2:#3F4D5A;--ink3:#5B6876;
+  --brand:#1A4F9C;--on-accent:#FFFFFF;
+  --show:#1A4F9C;--soon:#8A5000;--jam:#C02A1B;--easing:#8A5000;--go:#11743B;--calm:#1A4F9C;--slate:#4A5866;
+  --amber-fill:#E89A1E;
+  --flow:#1A4F9C;
+  --shadow:0 1px 2px rgba(15,27,38,.05),0 6px 20px -8px rgba(15,27,38,.10);
+  --tint-mix:9%;--edge-mix:24%;
+  --r-lg:24px;--r-md:16px;--r-sm:12px;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --accent:var(--slate);
+  color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0D0F10;--surface:#17191B;--surface2:#212427;--line:#2A2E31;--ink:#F2F3F1;--ink2:#B4BABD;--ink3:#8A9094;
-  --shadow:none;--shadow-hero:none;--cardborder:1px solid #2A2E31;--on-accent:#0D0F10;
-  --show:#A5A8FF;--show-t:#1C1D33; --soon:#FFB54D;--soon-t:#2B2112; --jam:#FF7A6E;--jam-t:#2E1513;
-  --easing:#4FD1BE;--easing-t:#0F2724; --go:#5EDB86;--go-t:#10271A; --calm:#AEB8C2;--calm-t:#1B1F23;
-  --flow:#4FD1BE;color-scheme:dark}}
+  --bg:#0A1017;--surface:#121A23;--surface2:#1A2430;--line:#243040;--line2:#2F3D4E;
+  --ink:#EDF1F5;--ink2:#B2BECA;--ink3:#8B98A6;
+  --brand:#8FB6F2;--on-accent:#0A1017;
+  --show:#8FB6F2;--soon:#F2B54E;--jam:#FF8C7C;--easing:#F2B54E;--go:#55D58E;--calm:#8FB6F2;--slate:#A9B5C1;
+  --amber-fill:#F2B54E;--flow:#8FB6F2;
+  --shadow:none;--tint-mix:13%;--edge-mix:30%;
+  color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0D0F10;--surface:#17191B;--surface2:#212427;--line:#2A2E31;--ink:#F2F3F1;--ink2:#B4BABD;--ink3:#8A9094;
-  --shadow:none;--shadow-hero:none;--cardborder:1px solid #2A2E31;--on-accent:#0D0F10;
-  --show:#A5A8FF;--show-t:#1C1D33; --soon:#FFB54D;--soon-t:#2B2112; --jam:#FF7A6E;--jam-t:#2E1513;
-  --easing:#4FD1BE;--easing-t:#0F2724; --go:#5EDB86;--go-t:#10271A; --calm:#AEB8C2;--calm-t:#1B1F23;
-  --flow:#4FD1BE;color-scheme:dark}
-.s-show{--accent:var(--show);--tint:var(--show-t)} .s-soon{--accent:var(--soon);--tint:var(--soon-t)}
-.s-jam{--accent:var(--jam);--tint:var(--jam-t)} .s-easing{--accent:var(--easing);--tint:var(--easing-t)}
-.s-go{--accent:var(--go);--tint:var(--go-t)} .s-calm,.s-wait,.s-stale{--accent:var(--calm);--tint:var(--calm-t)}
+  --bg:#0A1017;--surface:#121A23;--surface2:#1A2430;--line:#243040;--line2:#2F3D4E;
+  --ink:#EDF1F5;--ink2:#B2BECA;--ink3:#8B98A6;
+  --brand:#8FB6F2;--on-accent:#0A1017;
+  --show:#8FB6F2;--soon:#F2B54E;--jam:#FF8C7C;--easing:#F2B54E;--go:#55D58E;--calm:#8FB6F2;--slate:#A9B5C1;
+  --amber-fill:#F2B54E;--flow:#8FB6F2;
+  --shadow:none;--tint-mix:13%;--edge-mix:30%;
+  color-scheme:dark}
+.s-show{--accent:var(--show)} .s-soon{--accent:var(--soon)} .s-jam{--accent:var(--jam)}
+.s-easing{--accent:var(--easing)} .s-go{--accent:var(--go)} .s-calm{--accent:var(--calm)}
+.s-wait,.s-stale{--accent:var(--slate)}
+body{--tint:color-mix(in srgb,var(--accent) var(--tint-mix),var(--surface));--edge:color-mix(in srgb,var(--accent) var(--edge-mix),var(--line))}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:500 18px/1.6 "Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;letter-spacing:-.005em;word-break:keep-all}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:500 17px/1.6 "Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","NanumBarunGothic","Malgun Gothic",sans-serif;letter-spacing:-.01em;word-break:keep-all;overflow-wrap:break-word;-webkit-tap-highlight-color:transparent}
+::selection{background:color-mix(in srgb,var(--brand) 26%,transparent)}
 .num{font-variant-numeric:tabular-nums}
-.wrap{max-width:480px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.wrap{max-width:480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 
-/* 첫 화면 */
-#first{min-height:100svh;min-height:calc(100svh - var(--band,0px));display:flex;flex-direction:column;background:radial-gradient(120% 55% at 50% 0%,var(--tint) 0%,transparent 72%)}
-#first .wrap{flex:1;display:flex;flex-direction:column;width:100%;padding-top:max(8px,env(safe-area-inset-top,0px));padding-bottom:16px}
-.demo-band{display:none;position:sticky;top:0;z-index:3;align-items:center;justify-content:space-between;gap:8px;height:40px;padding:0 max(20px,env(safe-area-inset-left,0px));font-size:15px;font-weight:600;color:var(--ink2);background:repeating-linear-gradient(-45deg,var(--surface2) 0 10px,transparent 10px 20px),var(--bg);border-bottom:1px solid var(--line)}
-.demo-band button{background:none;border:0;font:inherit;font-weight:700;color:var(--ink);padding:8px 4px;min-height:40px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
-header{display:flex;align-items:center;justify-content:space-between;height:56px}
-.brand{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:700;letter-spacing:-.01em}
-.brand svg{width:24px;height:24px}
-.fresh{display:inline-flex;align-items:center;gap:6px;font-size:15px;font-weight:600;color:var(--ink2)}
-.fresh i{width:8px;height:8px;border-radius:50%;background:var(--go)}
-.fresh.warn i{background:var(--soon)} .fresh.off i{background:var(--ink3)}
-.chip{display:inline-flex;align-self:flex-start;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;background:var(--tint);color:var(--accent);font-size:15px;font-weight:700;margin-top:20px}
-.chip i{width:8px;height:8px;border-radius:50%;background:currentColor}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip{background:color-mix(in srgb,var(--accent) 16%,transparent)}}
-h1#head{font-size:32px;line-height:1.3;font-weight:750;letter-spacing:-.02em;margin:12px 0 0}
-.hero{position:relative;margin-top:20px;background:var(--surface);border:var(--cardborder);border-radius:20px;padding:22px 22px 20px;box-shadow:var(--shadow-hero);overflow:hidden}
-.s-jam .hero{border-left:4px solid var(--accent)}
-.hero .lab{font-size:15px;font-weight:600;color:var(--ink2)}
-.hero .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.hero .big{font-size:68px;line-height:1.02;font-weight:800;letter-spacing:-.03em;margin-top:4px}
-.hero .big.txt{font-size:40px;line-height:1.15;letter-spacing:-.02em;margin-top:6px}
-.s-go .hero .big{color:var(--accent)}
-.hero .after{font-size:19px;font-weight:700;color:var(--accent);margin-top:6px}
-.ring{flex:0 0 92px;width:92px;height:92px}
-.ring circle{fill:none;stroke-width:8}
-.ring .tr{stroke:var(--line)} .ring .ar{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .6s ease}
-.ring text{font-size:15px;font-weight:700;fill:var(--ink2)}
-.mini{display:flex;align-items:flex-end;gap:2px;height:22px;margin-top:16px}
-.mini span{flex:1;background:var(--accent);opacity:.4;border-radius:2px 2px 0 0;min-height:2px}
-.mini span.hi{opacity:.9}
-#tip{font-size:18px;font-weight:500;color:var(--ink2);margin:16px 2px 0}
-.alarm{margin-top:14px;width:100%;min-height:56px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
-.alarm svg{width:22px;height:22px}
+/* 예시 띠 */
+.demo-band{display:none;position:sticky;top:0;z-index:5;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:0 max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));font-size:15px;font-weight:600;color:var(--ink2);background:var(--surface2);border-bottom:1px solid var(--line)}
+.demo-band .tag{display:inline-flex;align-items:center;gap:8px}
+.demo-band .tag b{font-size:13px;font-weight:800;color:var(--on-accent);background:var(--ink2);border-radius:6px;padding:1px 7px}
+.demo-band button{background:none;border:0;font:inherit;font-weight:700;color:var(--ink);padding:0 4px;min-height:44px;min-width:44px;cursor:pointer;text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1.5px}
+
+/* 머리 */
+#first .wrap{padding-top:max(4px,env(safe-area-inset-top,0px))}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;height:60px}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.brand svg{width:28px;height:28px;flex:none}
+.fresh{display:inline-flex;align-items:center;gap:7px;min-height:32px;padding:0 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink2);white-space:nowrap}
+.fresh i{width:8px;height:8px;border-radius:50%;background:var(--go);flex:none}
+.fresh.warn i{background:var(--amber-fill)} .fresh.off i{background:var(--ink3)}
+
+/* 안내판: 상태 + 한 문장 + 출발 시각 */
+.sign{position:relative;margin-top:4px;border-radius:var(--r-lg);background:var(--tint);border:1px solid var(--edge);overflow:hidden;transition:background-color .4s var(--ease),border-color .4s var(--ease)}
+.sign .top{padding:18px 20px 18px}
+.badge{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px 0 10px;border-radius:999px;background:var(--surface);color:var(--accent);font-size:15px;font-weight:800;border:1px solid var(--edge)}
+.badge svg{width:16px;height:16px;flex:none}
+h1#head{font-size:28px;line-height:1.32;font-weight:800;letter-spacing:-.035em;margin:12px 0 0;text-wrap:balance}
+.hero{background:var(--surface);margin:0 6px 6px;border-radius:calc(var(--r-lg) - 6px);padding:18px 16px 18px;box-shadow:var(--shadow)}
+.hero .lab{font-size:16px;font-weight:700;color:var(--ink2)}
+.hero .big{font-size:76px;line-height:1;font-weight:800;letter-spacing:-.045em;margin:8px 0 0 -3px;color:var(--ink)}
+.hero .big .unit{font-size:.5em;letter-spacing:-.02em;margin-left:4px;color:var(--ink2)}
+.hero .big.txt{font-size:42px;line-height:1.15;letter-spacing:-.035em;margin-left:0}
+.hero .after{font-size:19px;line-height:1.4;font-weight:800;color:var(--accent);margin-top:10px}
+/* 기다림 길: 붐빔 시작 → 지금 → 출발 */
+.road{position:relative;margin:18px 2px 0;padding-bottom:24px}
+.road .tr{position:relative;height:8px;border-radius:999px;background:var(--surface2)}
+.road .fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--accent);transition:width .7s var(--ease)}
+.road .dot{position:absolute;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--surface);border:4px solid var(--accent);transition:left .7s var(--ease)}
+.road .flag{position:absolute;right:-2px;top:50%;width:14px;height:14px;margin-top:-7px;border-radius:4px;background:var(--go)}
+.road .lbl{position:absolute;top:16px;font-size:13px;font-weight:700;color:var(--ink3);white-space:nowrap}
+.road .lbl.now{transform:translateX(-50%);color:var(--ink)}
+.road .lbl.end{right:0;color:var(--go)}
+
+/* 출발: 안내판 전체가 초록으로 */
+.s-go .sign{background:var(--go);border-color:var(--go)}
+.s-go .badge{background:color-mix(in srgb,var(--on-accent) 16%,transparent);color:var(--on-accent);border-color:color-mix(in srgb,var(--on-accent) 35%,transparent)}
+.s-go h1#head{color:var(--on-accent)}
+.s-go .hero .big{color:var(--go)}
+.s-stale .sign{border-style:dashed}
+.s-wait .badge i{animation:breathe 1.4s ease-in-out infinite}
+.badge i{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+
+#tip{font-size:17px;line-height:1.6;font-weight:500;color:var(--ink2);margin:14px 4px 0}
+#tip a{color:var(--ink);font-weight:700;text-underline-offset:4px;text-decoration-thickness:1.5px;display:inline-block;min-height:44px;padding-top:9px}
+.btn{width:100%;min-height:56px;border-radius:var(--r-md);font:inherit;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:transform .12s var(--ease),background-color .2s,color .2s,border-color .2s}
+.btn:active{transform:scale(.98)}
+.alarm{margin-top:14px;padding:10px 16px;border:1.5px solid var(--line2);background:var(--surface);color:var(--ink);text-align:left}
+.alarm svg{width:24px;height:24px;flex:none}
+.alarm small{display:block;font-size:14px;font-weight:600;color:var(--ink3);margin-top:1px}
 .alarm[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.alarm small{display:block;font-size:14px;font-weight:600;opacity:.8}
-.spacer{flex:1;min-height:16px}
-.peek{margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:16px;font-weight:600;color:var(--ink2);text-decoration:none;min-height:48px}
-.peek svg{width:18px;height:18px}
-.retry{display:none;margin-top:14px;width:100%;min-height:52px;border:0;border-radius:14px;background:var(--ink);color:var(--bg);font:inherit;font-weight:700;cursor:pointer}
-.s-stale .retry{display:block}
+.alarm[aria-pressed="true"] small{color:inherit;opacity:.8}
+.alarm[aria-pressed="true"] svg{animation:ringbell 1s var(--ease) 1}
+.retry{display:none;margin-top:14px;border:0;background:var(--ink);color:var(--bg)}
+.s-stale .retry{display:flex}
 
 /* 아래 섹션 */
-section.sec{padding:8px 0 4px}
-.card{background:var(--surface);border:var(--cardborder);border-radius:20px;padding:20px;margin-bottom:12px;box-shadow:var(--shadow)}
-.card h2{font-size:19px;line-height:1.4;font-weight:700;letter-spacing:-.01em;margin:0}
-.lead{font-size:20px;font-weight:500;line-height:1.45;margin:6px 0 4px}.lead b{font-weight:800}
-.chartbox{position:relative;margin-top:14px;touch-action:pan-y}
-.ctip{position:absolute;top:-6px;background:var(--ink);color:var(--bg);font-size:15px;font-weight:600;padding:6px 10px;border-radius:10px;white-space:nowrap;pointer-events:none}
-.lead .num{color:var(--accent)}
-.cap{font-size:15px;color:var(--ink2);margin:8px 0 0}
-svg.chart{width:100%;height:auto;display:block;overflow:visible;cursor:crosshair}
-.show{padding:16px 0;border-top:1px solid var(--line)}
-.show:first-of-type{border-top:0;padding-top:12px}
-.show .t{font-size:19px;font-weight:700;line-height:1.4}
-.show .m{font-size:17px;color:var(--ink2);margin-top:2px}
-.strip{position:relative;margin-top:14px;height:12px;border-radius:999px;background:var(--surface2);overflow:visible}
-.strip b{position:absolute;top:0;height:12px;border-radius:999px}
+section.sec{margin-top:28px}
+.card{background:var(--surface);border-radius:var(--r-lg);padding:20px 18px;box-shadow:var(--shadow);border:1px solid var(--line)}
+:root[data-theme="dark"] .card{box-shadow:none}
+.card h2,.sec>h2{font-size:20px;line-height:1.4;font-weight:800;letter-spacing:-.025em;margin:0}
+.sec>h2{padding:0 4px}
+#flow h2{font-size:16px;font-weight:700;color:var(--ink2);letter-spacing:-.015em}
+.lead{font-size:18px;font-weight:600;line-height:1.45;margin:6px 0 0;color:var(--ink2)}
+.lead b{display:block;font-size:23px;line-height:1.35;margin-top:2px;font-weight:800;letter-spacing:-.03em;color:var(--ink)}
+.lead .now-rate{display:block;font-size:15px;font-weight:600;color:var(--ink3);margin-top:2px}
+.lead .now-rate .num{color:var(--ink);font-weight:800}
+.chartbox{position:relative;margin:14px -4px 0;touch-action:pan-y}
+svg.chart{width:100%;height:auto;display:block;overflow:visible;cursor:crosshair;-webkit-user-select:none;user-select:none}
+svg.chart text{font-family:inherit}
+.ctip{position:absolute;top:-8px;background:var(--ink);color:var(--bg);font-size:15px;font-weight:600;line-height:1.35;padding:7px 11px;border-radius:10px;white-space:nowrap;pointer-events:none;box-shadow:0 6px 18px -6px rgba(0,0,0,.35)}
+.ctip b{font-weight:800}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 2px 0;font-size:14px;font-weight:600;color:var(--ink3)}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.legend svg{width:22px;height:8px;flex:none}
+.cap{font-size:15px;line-height:1.6;color:var(--ink2);margin:10px 2px 0}
+.pulse{transform-box:fill-box;transform-origin:center;animation:pulse 2s var(--ease) infinite}
+
+/* 오늘 공연 */
+.show{padding:18px 0 4px;border-top:1px solid var(--line)}
+.show:first-child{border-top:0;padding-top:12px}
+.show .t{font-size:18px;font-weight:800;line-height:1.4;letter-spacing:-.02em}
+.show .m{font-size:15px;color:var(--ink2);margin-top:2px}
+.show .m span{white-space:nowrap}
+.strip{position:relative;margin-top:30px;height:10px;border-radius:999px;background:var(--surface2)}
+.strip b{position:absolute;top:0;height:10px;border-radius:999px}
 .strip .p{background:var(--show);opacity:.35}
-.strip .j{background:var(--jam);opacity:.75}
-.strip .needle{position:absolute;top:-6px;width:3px;height:24px;border-radius:2px;background:var(--ink)}
-.strip-l{position:relative;height:20px;margin-top:6px;font-size:13px;font-weight:600;color:var(--ink3)}
+.strip .j{background:var(--jam)}
+.strip .needle{position:absolute;top:-7px;width:3px;height:24px;border-radius:2px;background:var(--ink);box-shadow:0 0 0 2px var(--surface)}
+.strip .jl{position:absolute;bottom:16px;transform:translateX(-50%);font-size:13px;font-weight:800;color:var(--jam);white-space:nowrap}
+.strip-l{position:relative;height:22px;margin-top:8px;font-size:13px;font-weight:600;color:var(--ink3)}
 .strip-l span{position:absolute;transform:translateX(-50%);white-space:nowrap}
-.busy{margin-top:12px;background:var(--soon-t);color:var(--soon);border-radius:14px;padding:10px 14px;font-size:17px;font-weight:700}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .busy{background:color-mix(in srgb,var(--soon) 16%,transparent)}}
-ul.plain{padding-left:20px;margin:10px 0 0;color:var(--ink2)}
-ul.plain li{margin:6px 0}
-.src{font-size:15px;color:var(--ink3);margin:12px 0 0}
-button.primary{width:100%;min-height:56px;border:0;border-radius:14px;background:var(--ink);color:var(--bg);font:inherit;font-size:18px;font-weight:700;cursor:pointer;margin-top:14px}
-button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-footer{padding:8px 0 calc(28px + env(safe-area-inset-bottom,0px));font-size:15px;color:var(--ink3);text-align:center}
+.busy{display:flex;align-items:center;gap:10px;margin-top:12px;background:color-mix(in srgb,var(--jam) var(--tint-mix),var(--surface));border:1px solid color-mix(in srgb,var(--jam) var(--edge-mix),var(--line));color:var(--ink);border-radius:var(--r-sm);padding:10px 14px;font-size:16px;font-weight:700;line-height:1.45}
+.busy svg{width:20px;height:20px;flex:none;color:var(--jam)}
+.busy .num{color:var(--jam);font-weight:800}
+.empty{display:flex;gap:12px;align-items:flex-start;margin-top:12px}
+.empty svg{width:40px;height:40px;flex:none}
+.empty p{margin:0}
+.empty .e1{font-size:18px;font-weight:800}
+.empty .e2{font-size:15px;color:var(--ink2);margin-top:2px}
+
+/* 어떻게 알려 주나요 */
+.how{list-style:none;padding:0;margin:14px 0 0}
+.how li{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-top:1px solid var(--line);font-size:16px;line-height:1.6;color:var(--ink2)}
+.how li:first-child{border-top:0;padding-top:4px}
+.how .ic{flex:none;width:40px;height:40px;border-radius:12px;background:color-mix(in srgb,var(--brand) 10%,var(--surface));color:var(--brand);display:grid;place-items:center}
+.how .ic svg{width:22px;height:22px}
+.how b{color:var(--ink);font-weight:700}
+.src{font-size:14px;line-height:1.65;color:var(--ink3);margin:6px 0 0;padding-top:14px;border-top:1px solid var(--line)}
+.demo-card{display:flex;flex-direction:column;gap:2px;margin-top:12px;background:transparent;box-shadow:none;border:1.5px dashed var(--line2)}
+.demo-card .cap{margin:4px 0 0}
+.primary{margin-top:14px;border:0;background:var(--brand);color:var(--on-accent)}
+button:focus-visible,a:focus-visible{outline:3px solid var(--brand);outline-offset:3px;border-radius:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+footer{display:flex;align-items:center;justify-content:center;gap:8px;padding:28px 0 calc(28px + env(safe-area-inset-bottom,0px));font-size:14px;color:var(--ink3);text-align:center}
+footer svg{width:18px;height:18px}
+
+/* 움직임: 상태가 바뀔 때 한 번, 시각이 바뀔 때 짧게 */
+@keyframes signIn{from{opacity:.5;transform:translateY(6px) scale(.99)}to{opacity:1;transform:none}}
+@keyframes tick{from{opacity:0;transform:translateY(.18em)}to{opacity:1;transform:none}}
+@keyframes breathe{50%{opacity:.3}}
+@keyframes pulse{0%{opacity:.5;transform:scale(1)}70%,100%{opacity:0;transform:scale(2.6)}}
+@keyframes ringbell{20%{transform:rotate(-14deg)}40%{transform:rotate(10deg)}60%{transform:rotate(-6deg)}80%{transform:rotate(3deg)}}
+.sign.enter{animation:signIn .42s var(--ease)}
+.big.tick{animation:tick .26s var(--ease)}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}
+@media (max-width:359px){.hero .big{font-size:64px}h1#head{font-size:25px}}
 </style>
 </head>
 <body class="s-wait">
-<div class="demo-band" id="demoBand"><span>예시 · 2024.7.20 공연 밤 다시 보기</span><button id="liveBtn">끝내기</button></div>
+<div class="demo-band" id="demoBand"><span class="tag"><b>예시</b>2024.7.20 공연 밤 다시 보기</span><button id="liveBtn">끝내기</button></div>
 
 <div id="first">
  <div class="wrap">
   <header>
-    <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="7" fill="var(--ink)"/><circle cx="12" cy="12.5" r="6.8" fill="none" stroke="var(--bg)" stroke-width="1.8"/><path d="M12 12.5V8.6" stroke="var(--bg)" stroke-width="1.8" stroke-linecap="round"/><path d="M12 12.5l3.6-2.1" stroke="#5EDB86" stroke-width="2" stroke-linecap="round"/><path d="M14.4 9.4l1.4.9-.3 1.6" fill="none" stroke="#5EDB86" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>올팍 출차시계</div>
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#1A4F9C"/><circle cx="16" cy="16" r="9.2" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M16 10.6V16" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><path d="M16 16h6.2m-2.4-2.6 2.6 2.6-2.6 2.6" fill="none" stroke="#5FE09A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>올팍 출차시계</div>
     <div class="fresh" id="fresh"><i></i><span id="freshTxt" class="num">확인 중</span></div>
   </header>
 
-  <div class="chip" id="chip"><i></i><span id="chipTxt">확인 중</span></div>
-  <h1 id="head">주차장 상황을 보는 중이에요</h1>
-
-  <div class="hero" id="hero">
-    <div class="lab" id="hLab"></div>
-    <div class="row">
-      <div>
-        <div class="big num" id="hBig"></div>
-        <div class="after num" id="hAfter"></div>
-      </div>
-      <svg class="ring" id="ring" viewBox="0 0 92 92" aria-hidden="true"><circle class="tr" cx="46" cy="46" r="38"/><circle class="ar" id="ringArc" cx="46" cy="46" r="38" transform="rotate(-90 46 46)" stroke-dasharray="238.8" stroke-dashoffset="238.8"/><text x="46" y="51" text-anchor="middle" id="ringTxt"></text></svg>
+  <div class="sign" id="sign">
+    <div class="top">
+      <div class="badge" id="chip"><i></i><span id="chipTxt">확인 중</span></div>
+      <h1 id="head">주차장 상황을 보는 중이에요</h1>
     </div>
-    <div class="mini" id="mini" aria-hidden="true"></div>
+    <div class="hero" id="hero">
+      <div class="lab" id="hLab"></div>
+      <div class="big num" id="hBig"></div>
+      <div class="after num" id="hAfter"></div>
+      <div class="road" id="road" aria-hidden="true">
+        <div class="tr"><div class="fill" id="roadFill"></div><i class="flag"></i><div class="dot" id="roadDot"></div></div>
+        <span class="lbl now" id="roadNow">지금</span><span class="lbl end num" id="roadEnd"></span>
+      </div>
+    </div>
   </div>
 
   <p id="tip"></p>
-  <button class="alarm" id="alarm" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 004 0"/></svg><span><span id="alarmTxt">출발 시간 되면 알려 주세요</span><small id="alarmSub">화면을 켜 두시면 진동과 소리로 알려 드려요</small></span></button>
-  <button class="retry" id="retry">다시 확인</button>
-  <div class="spacer"></div>
-  <a class="peek" href="#flow"><span>앞으로 30분 흐름 보기</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></a>
+  <button class="btn alarm" id="alarm" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 004 0"/></svg><span><span id="alarmTxt">출발 시간 되면 알려 주세요</span><small id="alarmSub">화면을 켜 두시면 진동과 소리로 알려 드려요</small></span></button>
+  <button class="btn retry" id="retry">다시 확인</button>
  </div>
 </div>
 
@@ -154,7 +230,8 @@ footer{padding:8px 0 calc(28px + env(safe-area-inset-bottom,0px));font-size:15px
     <div class="card">
       <h2>1분마다 주차장을 나간 차</h2>
       <p class="lead" id="lead">몇 분 지나면 그래프가 그려져요</p>
-      <div class="chartbox"><svg class="chart" id="chart" viewBox="0 0 340 210" role="img" aria-label="지난 30분 동안 1분마다 주차장을 나간 차와 앞으로 30분 예상"></svg><div class="ctip" id="chartTip" hidden></div></div>
+      <div class="chartbox"><svg class="chart" id="chart" viewBox="0 0 320 236" role="img" aria-label="지난 30분 동안 1분마다 주차장을 나간 차와 앞으로 30분 예상"></svg><div class="ctip" id="chartTip" hidden></div></div>
+      <div class="legend" id="legend" aria-hidden="true"></div>
       <p class="cap" id="chartCap">1분에 12대 넘게 나가면 출구에 줄이 생겨요. 빨간 부분이 그때예요.</p>
     </div>
   </section>
@@ -167,22 +244,22 @@ footer{padding:8px 0 calc(28px + env(safe-area-inset-bottom,0px));font-size:15px
   </section>
 
   <section class="sec">
-    <div class="card">
-      <h2>어떻게 알려 주나요?</h2>
-      <ul class="plain">
-        <li>한국체육산업개발이 공개하는 올림픽공원 실시간 주차 대수를 1분마다 확인해요.</li>
-        <li>1분에 12대 넘게 빠져나가면 "줄 서요"라고 알려 드려요. 평소 저녁에는 1분에 2~6대예요.</li>
-        <li>2024년 공연 밤에는 붐비는 흐름이 보통 45분 이어졌어요. 그 기준으로 출발 시각을 추천해요.</li>
+    <h2>어떻게 알려 주나요?</h2>
+    <div class="card" style="margin-top:12px">
+      <ul class="how">
+        <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M10 2h4"/></svg></span><span>한국체육산업개발이 공개하는 올림픽공원 실시간 주차 대수를 <b>1분마다</b> 확인해요.</span></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 3 8-8"/><path d="M3 21h18" opacity=".5"/></svg></span><span>1분에 <b>12대</b> 넘게 빠져나가면 "줄 서요"라고 알려 드려요. 평소 저녁에는 1분에 2~6대예요.</span></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg></span><span>2024년 공연 밤에는 붐비는 흐름이 보통 <b>45분</b> 이어졌어요. 그 기준으로 출발 시각을 추천해요.</span></li>
       </ul>
       <p class="src">기관 집계 주차대수(<span id="vNow" class="num">–</span>)에는 오래 세워 둔 차가 쌓여 있어 실제보다 많게 나와요. 그래서 몇 대가 빠졌는지만 봐요.<br>자료: 실시간 주차현황(공공데이터포털 15168686), 주차장 입출차 정보(15138735), 올림픽공원 공연일정.</p>
     </div>
-    <div class="card">
+    <div class="card demo-card">
       <h2>공연 끝난 밤엔 이렇게 보여요</h2>
       <p class="cap">2024년 7월 20일 KSPO DOME 공연 밤의 실제 기록을 빠르게 다시 보여 드려요.</p>
-      <button class="primary" id="demoBtn">예시 보기</button>
+      <button class="btn primary" id="demoBtn">예시 보기</button>
     </div>
   </section>
-  <footer>올팍 출차시계 · 공공데이터 활용</footer>
+  <footer><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor" opacity=".25"/><circle cx="16" cy="16" r="9.2" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M16 10.6V16h6.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>올팍 출차시계 · 공공데이터 활용</footer>
 </div>
 <div class="sr" aria-live="polite" id="announce"></div>
 
@@ -337,29 +414,30 @@ function decide(){
 }
 
 // ---------- 그리기 ----------
+const ICON_CLOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 function renderShows(){
   const box=$('shows');
   if(schedErr){ box.innerHTML='<p class="cap">공연 정보를 못 불러왔어요. 주차장 상황만 보고 알려 드려요.</p>'; return; }
-  if(!shows.length){ box.innerHTML='<p class="lead" style="margin-top:12px">오늘은 큰 공연이 없어요.</p><p class="cap" style="margin-top:2px">나가는 길이 막힐 일은 적어요.</p>'; return; }
+  if(!shows.length){ box.innerHTML='<div class="empty"><svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="color-mix(in srgb,var(--brand) 10%,var(--surface))"/><path d="M12 22l5 5 11-12" fill="none" stroke="var(--brand)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><div><p class="e1">오늘은 큰 공연이 없어요.</p><p class="e2">나가는 길이 막힐 일은 적어요.</p></div></div>'; return; }
   const t=now();
   box.innerHTML=shows.map(s=>{
     if(!s.start) return `<div class="show"><div class="t">${esc(s.title)}</div><div class="m">${esc(s.plc)} · 시간 정보 없음</div></div>`;
     const a=+s.start, b=+s.end+120*MIN, P=x=>Math.max(0,Math.min(100,(x-a)/(b-a)*100));
     const end=+s.end, j0=end+30*MIN, j1=end+90*MIN;
     const needle = (t>=a&&t<=b)?`<i class="needle" style="left:calc(${P(t)}% - 1.5px)" title="지금"></i>`:'';
-    return `<div class="show"><div class="t">${esc(s.title)}</div><div class="m num">${esc(s.plc)} · ${fmt(a)} 시작 · ${fmt(end)}쯤 끝</div>
-      <div class="strip" aria-hidden="true"><b class="p" style="left:0;width:${P(end)}%"></b><b class="j" style="left:${P(j0)}%;width:${P(j1)-P(j0)}%"></b>${needle}</div>
-      <div class="strip-l num" aria-hidden="true"><span style="left:0;transform:none">${fmt(a)}</span><span style="left:${P(end)}%">${fmt(end)} 끝</span><span style="left:${(P(j0)+P(j1))/2}%;color:var(--jam)">붐빔</span></div>
-      <div class="busy num">${fmt(j0)} ~ ${fmt(j1)} 나가는 길 붐빔</div></div>`;
+    return `<div class="show"><div class="t">${esc(s.title)}</div><div class="m num"><span>${esc(s.plc)}</span> · <span>${fmt(a)} 시작</span> · <span>${fmt(end)}쯤 끝</span></div>
+      <div class="strip" aria-hidden="true"><b class="p" style="left:0;width:${P(end)}%"></b><b class="j" style="left:${P(j0)}%;width:${P(j1)-P(j0)}%"></b><span class="jl" style="left:${(P(j0)+P(j1))/2}%">붐빔</span>${needle}</div>
+      <div class="strip-l num" aria-hidden="true"><span style="left:0;transform:none">${fmt(a)}</span><span style="left:${P(end)}%">${fmt(end)} 끝</span></div>
+      <div class="busy">${ICON_CLOCK}<span><span class="num">${fmt(j0)} ~ ${fmt(j1)}</span> 나가는 길 붐빔</span></div></div>`;
   }).join('');
 }
 // 2024-07-20 공연 밤 곡선에서, 몰리기 시작한 뒤 k분째의 1분당 출차(예상 모양)
 const PAT=(()=>{ const v=window.PATTERN_2024.d20.v; let on=0; for(let i=1;i<v.length;i++){ if(v[i-1]-v[i]>=SURGE){ on=i; break; } }
   return k=>{ const x=on+k/5; const i=Math.floor(x); if(i<1||i>=v.length) return 0; const a=Math.max(0,(v[i-1]-v[i])/5), b=i+1<v.length?Math.max(0,(v[i]-v[i+1])/5):0; return a+(b-a)*(x-i); }; })();
-let chartState=null;
+let chartState=null, lastBig=null;
 function chart(s){
   // 참고: 날씨 앱의 '다음 1시간 강수' 그래프(지난 기록은 실선, 앞으로는 예상 점선, 세로축은 숫자 대신 '약함·보통·강함')
-  const svg=$('chart'), t=now(), W=340,H=210,L=40,R=10,T=34,B=28;
+  const svg=$('chart'), t=now(), W=320,H=236,L=44,R=8,T=46,B=32;
   const onset=surgeOnset();
   const past=rateSeries(t,30), valid=past.filter(p=>p.r!==null);
   // 앞으로 30분 예상: 2024 곡선 모양을 오늘 실제 수준에 맞춰 늘이거나 줄임
@@ -373,56 +451,63 @@ function chart(s){
     const fN=Math.round((Math.max(t+30*MIN,(s.go&&s.go>t)?s.go+6*MIN:0)-t)/MIN); for(let m=0;m<=fN;m++){ let r=PAT(k0+m)*sc; if(m<4&&last!==null) r=last+(r-last)*(m/4); future.push({t:t+m*MIN,r:Math.max(0,r)}); }
   }
   const goAhead=(s.go&&s.go>t)?s.go:0; const x0=t-30*MIN, x1=Math.max(t+30*MIN, goAhead+6*MIN);
-  const LV=[{v:6,l:'보통'},{v:JAM_PER_MIN,l:'막힘'}];
   const yMax=Math.max(24,...valid.map(p=>p.r),...future.map(p=>p.r))*1.08;
   const X=x=>L+(x-x0)/(x1-x0)*(W-L-R), Y=v=>T+(1-v/yMax)*(H-T-B);
-  let g=`<defs><clipPath id="cAbove"><rect x="0" y="0" width="${W}" height="${Y(JAM_PER_MIN)}"/></clipPath><clipPath id="cBelow"><rect x="0" y="${Y(JAM_PER_MIN)}" width="${W}" height="${H}"/></clipPath>
-    <linearGradient id="gPast" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--flow)" stop-opacity=".45"/><stop offset="1" stop-color="var(--flow)" stop-opacity=".05"/></linearGradient>
-    <linearGradient id="gJam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--jam)" stop-opacity=".55"/><stop offset="1" stop-color="var(--jam)" stop-opacity=".15"/></linearGradient></defs>`;
-  // 단계선(숫자 대신 말)
-  for(const lv of LV){ const y=Y(lv.v), jam=lv.v===JAM_PER_MIN;
-    g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${jam?'var(--jam)':'var(--line)'}" stroke-opacity="${jam?.5:1}" stroke-dasharray="${jam?'':'2 4'}"/>`;
-    g+=`<text x="${L-8}" y="${y+5}" font-size="14" font-weight="${jam?800:600}" text-anchor="end" fill="${jam?'var(--jam)':'var(--ink3)'}">${lv.l}</text>`; }
-  g+=`<line x1="${L}" x2="${W-R}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)" stroke-width="1.5"/>`;
-  // 지금 이후 배경
-  g+=`<rect x="${X(t)}" y="${T-6}" width="${X(x1)-X(t)}" height="${H-B-T+6}" fill="var(--surface2)" opacity=".55" rx="6"/>`;
-  g+=`<text x="${X(t)+8}" y="${T+8}" font-size="13" font-weight="600" fill="var(--ink3)">${future.length?'예상':'앞으로'}</text>`;
+  const yJ=Y(JAM_PER_MIN), y6=Y(6), y0=Y(0), xn=X(t);
+  let g=`<defs><clipPath id="cAbove"><rect x="0" y="0" width="${W}" height="${yJ}"/></clipPath><clipPath id="cBelow"><rect x="0" y="${yJ}" width="${W}" height="${H}"/></clipPath>
+    <linearGradient id="gPast" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--flow)" stop-opacity=".30"/><stop offset="1" stop-color="var(--flow)" stop-opacity=".02"/></linearGradient>
+    <linearGradient id="gJam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--jam)" stop-opacity=".42"/><stop offset="1" stop-color="var(--jam)" stop-opacity=".12"/></linearGradient></defs>`;
+  // 막힘 구간 바탕(아주 옅게)
+  g+=`<rect x="${L}" y="${T-8}" width="${W-L-R}" height="${yJ-T+8}" fill="var(--jam)" opacity=".045"/>`;
+  // 앞으로(예상) 바탕
+  g+=`<rect x="${xn}" y="${T-8}" width="${X(x1)-xn}" height="${y0-T+8}" fill="var(--ink3)" opacity=".07"/>`;
+  // 단계선과 세로축 말(숫자 대신)
+  g+=`<line x1="${L}" x2="${W-R}" y1="${y6}" y2="${y6}" stroke="var(--line2)" stroke-dasharray="3 4"/>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${yJ}" y2="${yJ}" stroke="var(--jam)" stroke-opacity=".55" stroke-width="1.25"/>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${y0}" y2="${y0}" stroke="var(--line2)" stroke-width="1.5"/>`;
+  const ylab=(y,l,c,w)=>`<text x="${L-10}" y="${y+5}" font-size="14" font-weight="${w}" text-anchor="end" fill="${c}">${l}</text>`;
+  g+=ylab((y6+y0)/2,'한산','var(--ink3)',600)+ylab((yJ+y6)/2,'보통','var(--ink3)',600)+ylab(Math.max(T+6,(yJ+T-8)/2),'막힘','var(--jam)',800);
+  if(!future.length) g+=`<text x="${X(x1)-8}" y="${y0-8}" font-size="13" font-weight="700" text-anchor="end" fill="var(--ink3)">앞으로</text>`;
   // x축
-  const xt=[[x0,'30분 전'],[t,'지금'],[x1,Math.round((x1-t)/MIN)+'분 뒤']];
-  for(const [x,l] of xt){ const now_=x===t; g+=`<text x="${X(x)}" y="${H-7}" font-size="13" font-weight="${now_?800:500}" text-anchor="${x===x0?'start':x===x1?'end':'middle'}" fill="${now_?'var(--ink)':'var(--ink3)'}">${l}</text>`; }
-  g+=`<line x1="${X(t)}" x2="${X(t)}" y1="${T-6}" y2="${H-B}" stroke="var(--ink)" stroke-width="1.5"/>`;
+  const xt=[[x0,'30분 전','start'],[x1,Math.round((x1-t)/MIN)+'분 뒤','end']];
+  for(const [x,l,a] of xt) g+=`<text x="${X(x)}" y="${H-8}" font-size="13" font-weight="600" text-anchor="${a}" fill="var(--ink3)">${l}</text>`;
+  g+=`<line x1="${xn}" x2="${xn}" y1="${T-8}" y2="${y0}" stroke="var(--ink)" stroke-width="1.5"/>`;
+  g+=`<rect x="${xn-21}" y="${H-25}" width="42" height="22" rx="11" fill="var(--ink)"/><text x="${xn}" y="${H-9}" font-size="13" font-weight="800" text-anchor="middle" fill="var(--bg)">지금</text>`;
   const smooth=pts=>{ let d=`M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`; for(let i=1;i<pts.length;i++){ const [xa,ya]=pts[i-1],[xb,yb]=pts[i],cx=(xa+xb)/2; d+=` C${cx.toFixed(1)},${ya.toFixed(1)} ${cx.toFixed(1)},${yb.toFixed(1)} ${xb.toFixed(1)},${yb.toFixed(1)}`; } return d; };
   if(valid.length<3 && !future.length){
-    g+=`<text x="${(L+X(t))/2}" y="${Y(4)}" font-size="15" font-weight="600" text-anchor="middle" fill="var(--ink3)">몇 분 지나면 그려져요</text>`;
+    g+=`<text x="${(L+xn)/2}" y="${(y6+y0)/2+5}" font-size="15" font-weight="700" text-anchor="middle" fill="var(--ink3)">몇 분 지나면 그려져요</text>`;
   }
   // 지난 30분(실측): 끊긴 곳은 나눠 그림
   const segs=[]; let cur=[]; for(const p of past){ if(p.r===null){ if(cur.length) segs.push(cur); cur=[]; } else cur.push(p); } if(cur.length) segs.push(cur);
-  for(const seg of segs){ if(seg.length<2) continue; const pts=seg.map(p=>[X(p.t),Y(p.r)]), line=smooth(pts), area=line+` L${pts[pts.length-1][0].toFixed(1)},${Y(0)} L${pts[0][0].toFixed(1)},${Y(0)} Z`;
+  for(const seg of segs){ if(seg.length<2) continue; const pts=seg.map(p=>[X(p.t),Y(p.r)]), line=smooth(pts), area=line+` L${pts[pts.length-1][0].toFixed(1)},${y0} L${pts[0][0].toFixed(1)},${y0} Z`;
     g+=`<path d="${area}" fill="url(#gPast)" clip-path="url(#cBelow)"/><path d="${area}" fill="url(#gJam)" clip-path="url(#cAbove)"/>`;
-    g+=`<path d="${line}" fill="none" stroke="var(--flow)" stroke-width="2.5" stroke-linecap="round" clip-path="url(#cBelow)"/><path d="${line}" fill="none" stroke="var(--jam)" stroke-width="2.5" stroke-linecap="round" clip-path="url(#cAbove)"/>`; }
+    g+=`<path d="${line}" fill="none" stroke="var(--flow)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#cBelow)"/><path d="${line}" fill="none" stroke="var(--jam)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" clip-path="url(#cAbove)"/>`; }
   // 앞으로 30분(예상): 점선
   if(future.length){ const pts=future.map(p=>[X(p.t),Y(p.r)]), line=smooth(pts);
-    g+=`<path d="${line} L${pts[pts.length-1][0].toFixed(1)},${Y(0)} L${pts[0][0].toFixed(1)},${Y(0)} Z" fill="var(--ink3)" opacity=".10"/>`;
-    g+=`<path d="${line}" fill="none" stroke="var(--ink2)" stroke-width="2" stroke-dasharray="1 5" stroke-linecap="round"/>`; }
+    g+=`<path d="${line} L${pts[pts.length-1][0].toFixed(1)},${y0} L${pts[0][0].toFixed(1)},${y0} Z" fill="var(--ink3)" opacity=".10"/>`;
+    g+=`<path d="${line}" fill="none" stroke="var(--ink2)" stroke-width="2.6" stroke-dasharray="0.1 6" stroke-linecap="round"/>`; }
   // 출발 깃발
   const goT = s.go && s.go>t ? s.go : (s.tone==='go'?t:null);
-  if(goT && goT<=x1){ const fx=X(goT), label=goT>t?`${fmt(goT)} 출발`:'지금 출발', w=label.length*12.5+20, bx=Math.min(W-w,Math.max(L,fx-w/2));
-    g+=`<line x1="${fx}" x2="${fx}" y1="${T-6}" y2="${H-B}" stroke="var(--go)" stroke-width="2"/>`;
-    g+=`<rect x="${bx}" y="${T-34}" width="${w}" height="26" rx="13" fill="var(--go)"/><text x="${bx+w/2}" y="${T-16}" font-size="14" font-weight="800" text-anchor="middle" fill="var(--on-accent)">${label}</text>`; }
+  if(goT && goT<=x1){ const fx=X(goT), label=goT>t?`${fmt(goT)} 출발`:'지금 출발', w=label.length*8.6+26, bx=Math.min(W-R-w,Math.max(L,fx-w/2)), px=Math.min(bx+w-10,Math.max(bx+10,fx));
+    g+=`<line x1="${fx}" x2="${fx}" y1="${T-12}" y2="${y0}" stroke="var(--go)" stroke-width="2"/>`;
+    g+=`<rect x="${bx}" y="${T-42}" width="${w}" height="28" rx="14" fill="var(--go)"/><path d="M${px-6},${T-15} L${px},${T-8} L${px+6},${T-15} Z" fill="var(--go)"/><text x="${bx+w/2}" y="${T-23}" font-size="14" font-weight="800" text-anchor="middle" fill="var(--on-accent)">${label}</text>`; }
   // 지금 점
-  const lastP=past[past.length-1];
-  if(lastP.r!==null){ const c=lastP.r>=JAM_PER_MIN?'var(--jam)':'var(--flow)'; g+=`<circle cx="${X(t)}" cy="${Y(lastP.r)}" r="6" fill="${c}" stroke="var(--surface)" stroke-width="2.5"/>`; }
+  const lastP=past[past.length-1]||{r:null};
+  if(lastP.r!==null){ const c=lastP.r>=JAM_PER_MIN?'var(--jam)':'var(--flow)'; g+=`<circle class="pulse" cx="${xn}" cy="${Y(lastP.r)}" r="6" fill="${c}"/><circle cx="${xn}" cy="${Y(lastP.r)}" r="6.5" fill="${c}" stroke="var(--surface)" stroke-width="3"/>`; }
   // 손가락으로 짚으면 값 보기
-  g+=`<g id="hov" style="display:none"><line id="hovL" y1="${T-6}" y2="${H-B}" stroke="var(--ink2)" stroke-width="1"/><circle id="hovC" r="5" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/></g>`;
+  g+=`<g id="hov" style="display:none"><line id="hovL" y1="${T-8}" y2="${y0}" stroke="var(--ink2)" stroke-width="1.25"/><circle id="hovC" r="6" fill="var(--surface)" stroke="var(--ink)" stroke-width="2.5"/></g>`;
   svg.innerHTML=g;
   chartState={X,Y,x0,x1,L,R,W,past,future,t};
+  // 범례: 선 모양으로 실측과 예상을 구분
+  const lg=$('legend');
+  lg.innerHTML = valid.length>=3||future.length ? `<span><svg viewBox="0 0 22 8"><path d="M1 4h20" stroke="var(--flow)" stroke-width="3" stroke-linecap="round"/></svg>지난 30분</span>`+(future.length?`<span><svg viewBox="0 0 22 8"><path d="M2 4h19" stroke="var(--ink2)" stroke-width="2.6" stroke-dasharray="0.1 6" stroke-linecap="round"/></svg>예상</span>`:'') : '';
   // 헤드라인(날씨 앱처럼 한 문장)
   const r=lastP.r!==null?Math.round(lastP.r):null; let lead;
   if(s.tone==='jam'||s.tone==='easing') lead=`<b>${fmt(s.go)}쯤 줄이 풀려요</b>`;
   else if(s.tone==='go') lead='<b>지금은 줄이 거의 없어요</b>';
   else if(r!==null) lead=`<b>지금 ${r>=JAM_PER_MIN?'나가는 차가 많아요':r>=6?'나가는 차가 조금 있어요':'한산해요'}</b>`;
   else lead='<b>주차장을 나가는 차를 세는 중이에요</b>';
-  if(r!==null) lead+=` <span style="color:var(--ink3);font-weight:600">· 지금 1분에 <span class="num">${r}</span>대</span>`;
+  if(r!==null) lead+=`<span class="now-rate">지금 1분에 <span class="num">${r}</span>대</span>`;
   $('lead').innerHTML=lead;
   $('chartCap').textContent = (future.length?'점선은 2024년 공연 밤 흐름으로 본 예상이에요. ':'')+'1분에 12대 넘게 나가면 출구에 줄이 생겨요.'+(demo?' 예시는 5분 단위 기록을 1분으로 나눠 그렸어요.':'');
 }
@@ -440,21 +525,25 @@ function chart(s){
   const hide=()=>{ const h=$('hov'); if(h) h.style.display='none'; tip.hidden=true; };
   svg.addEventListener('pointermove',show); svg.addEventListener('pointerdown',show); svg.addEventListener('pointerleave',hide);
 })();
-function mini(tone){
-  if(!['jam','easing','go'].includes(tone)){ $('mini').style.display='none'; return; }
-  const ser=rateSeries(now(),15).slice(1); const box=$('mini');
-  if(ser.filter(p=>p.r!==null).length<3){ box.innerHTML=''; box.style.display='none'; return; }
-  box.style.display='flex'; const mx=Math.max(20,...ser.map(p=>p.r||0));
-  box.innerHTML=ser.map(p=>`<span class="${(p.r||0)>=JAM_PER_MIN?'hi':''}" style="height:${Math.max(2,(p.r||0)/mx*22).toFixed(1)}px"></span>`).join('');
+function road(s){
+  const el=$('road');
+  if(s.ring==null || !s.go){ el.hidden=true; return; }
+  el.hidden=false; const p=Math.max(.04,Math.min(1,s.ring))*100;
+  $('roadFill').style.width=p+'%'; $('roadDot').style.left=p+'%';
+  const nl=$('roadNow'); nl.style.left=Math.max(6,Math.min(p,62))+'%';
+  $('roadEnd').textContent=fmt(s.go)+' 출발';
 }
 function render(){
   const s=decide();
   document.body.className='s-'+s.tone;
   $('chipTxt').textContent=s.chip; $('head').textContent=s.head;
   const hero=$('hero');
-  if(s.big){ hero.hidden=false; $('hLab').textContent=s.lab; const b=$('hBig'); b.textContent=s.big; b.className='big num'+(s.txt?' txt':''); $('hAfter').textContent=s.after||''; $('hAfter').hidden=!s.after;
-    const ring=$('ring'); if(s.ring!=null){ ring.style.display=''; $('ringArc').style.strokeDashoffset=(238.8*(1-s.ring)).toFixed(1); $('ringTxt').textContent=s.ringTxt||''; } else ring.style.display='none';
-  } else hero.hidden=true;
+  if(s.big){ hero.hidden=false; $('hLab').textContent=s.lab; const b=$('hBig');
+    const html=esc(s.big).replace(/쯤$/,'<span class="unit">쯤</span>');
+    if(b.innerHTML!==html){ b.innerHTML=html; if(lastBig!==null){ b.classList.remove('tick'); void b.offsetWidth; b.classList.add('tick'); } lastBig=html; }
+    b.classList.toggle('txt',!!s.txt); $('hAfter').textContent=s.after||''; $('hAfter').hidden=!s.after;
+    road(s);
+  } else { hero.hidden=true; lastBig=null; }
   const tip=$('tip');
   if(s.demoLink){ tip.innerHTML=(s.tip?esc(s.tip)+' ':'')+'<a href="#" id="demoLink" style="color:var(--ink);font-weight:700;text-underline-offset:3px">공연 끝난 밤엔 이렇게 보여요 (예시)</a>'; $('demoLink').onclick=e=>{e.preventDefault();startDemo();}; tip.hidden=false; }
   else { tip.textContent=s.tip||''; tip.hidden=!s.tip; }
@@ -465,8 +554,8 @@ function render(){
   else if(!lastOk){ f.className='fresh off'; ft.textContent=liveErr?'연결 안 됨':'확인 중'; }
   else { const ago=Math.floor((Date.now()-lastOk)/MIN); f.className='fresh'+(ago>=5?' off':ago>=2?' warn':''); ft.textContent= ago>=2?`${ago}분째 새 정보 없음`:(ago<1?'방금 확인':'1분 전 확인'); }
   const last=samples[samples.length-1]; $('vNow').textContent = last? n(last[1])+'대':'–';
-  mini(s.tone); chart(s);
-  if(s.tone!==lastTone){ if(lastTone!==null) $('announce').textContent=s.head+(s.big?'. '+s.lab+' '+s.big:''); if(s.tone==='go' && alarmArmed) ring(); lastTone=s.tone; }
+  chart(s);
+  if(s.tone!==lastTone){ if(lastTone!==null){ const sg=$('sign'); sg.classList.remove('enter'); void sg.offsetWidth; sg.classList.add('enter'); } if(lastTone!==null) $('announce').textContent=s.head+(s.big?'. '+s.lab+' '+s.big:''); if(s.tone==='go' && alarmArmed) ring(); lastTone=s.tone; }
 }
 
 // ---------- 출발 알림 ----------
