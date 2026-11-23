@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>올팍 출차시계</title>
+<meta name="description" content="올림픽공원 공연이 끝난 뒤, 지금 나가면 막히는지 실시간 주차대수로 알려 줍니다.">
+<meta name="theme-color" content="#0f3d3e">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--ink:#1d2321;--sub:#5d6662;--line:#e3e1da;--brand:#0f3d3e;--ok:#1f7a4d;--warn:#b86b00;--bad:#b3261e;--soft:#eef3f1}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121514;--card:#1b1f1e;--ink:#eef1ef;--sub:#a3aca8;--line:#2c3331;--brand:#7cc4b8;--ok:#5cc28b;--warn:#f0a33a;--bad:#ff7a6e;--soft:#1f2826;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#121514;--card:#1b1f1e;--ink:#eef1ef;--sub:#a3aca8;--line:#2c3331;--brand:#7cc4b8;--ok:#5cc28b;--warn:#f0a33a;--bad:#ff7a6e;--soft:#1f2826;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif}
+main{max-width:520px;margin:0 auto;padding-block:16px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:4px 0 14px}
+h1{font-size:20px;margin:0;color:var(--brand);letter-spacing:-.3px}
+.tag{font-size:12px;color:var(--sub)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+.status{border-width:2px}
+.status .label{font-size:13px;color:var(--sub);margin-bottom:4px}
+.status .big{font-size:28px;font-weight:800;letter-spacing:-.5px;line-height:1.25}
+.status .advice{font-size:17px;margin-top:6px;font-weight:600}
+.status .why{font-size:13px;color:var(--sub);margin-top:8px}
+.s-ok{border-color:var(--ok)} .s-ok .big{color:var(--ok)}
+.s-warn{border-color:var(--warn)} .s-warn .big{color:var(--warn)}
+.s-bad{border-color:var(--bad)} .s-bad .big{color:var(--bad)}
+.row{display:flex;gap:10px}
+.stat{flex:1;background:var(--soft);border-radius:12px;padding:10px 12px}
+.stat .k{font-size:12px;color:var(--sub)} .stat .v{font-size:22px;font-weight:700}
+.stat .v small{font-size:13px;font-weight:500;color:var(--sub)}
+h2{font-size:15px;margin:0 0 10px}
+.show{padding:10px 0;border-top:1px solid var(--line)} .show:first-of-type{border-top:0;padding-top:0}
+.show .t{font-weight:600} .show .m{font-size:13px;color:var(--sub)}
+.win{display:inline-block;margin-top:4px;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--soft);color:var(--ink)}
+svg{width:100%;height:auto;display:block}
+.note{font-size:12px;color:var(--sub)}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+button{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer}
+button.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+@media (prefers-color-scheme:dark){button.primary{color:#0b1312}}
+details summary{cursor:pointer;font-weight:600;font-size:14px}
+ul.src{padding-left:18px;margin:8px 0 0;font-size:13px;color:var(--sub)}
+.demo-banner{display:none;background:var(--warn);color:#fff;border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<main>
+<header><h1>올팍 출차시계</h1><span class="tag" id="clock"></span></header>
+<div class="demo-banner" id="demoBanner">데모: 2024년 7월 20일 밤(KSPO DOME + 올림픽홀) 실제 기록을 5분 단위로 재생하는 중입니다.</div>
+
+<section class="card status" id="statusCard" aria-live="polite">
+  <div class="label">올림픽공원 주차장(동2·남2·북2문) 지금 상태</div>
+  <div class="big" id="sBig">불러오는 중…</div>
+  <div class="advice" id="sAdvice"></div>
+  <div class="why" id="sWhy"></div>
+</section>
+
+<section class="card">
+  <div class="row">
+    <div class="stat"><div class="k">최근 5분 변화</div><div class="v" id="vDrop">–</div></div>
+    <div class="stat"><div class="k">기관 집계 주차대수</div><div class="v" id="vNow">–</div></div>
+  </div>
+  <div style="margin-top:12px"><svg id="spark" viewBox="0 0 320 90" role="img" aria-label="최근 주차대수 추이"></svg></div>
+  <p class="note" id="liveNote">1분마다 한국체육산업개발 실시간 주차현황 API를 다시 읽습니다. 기관 집계값에는 장기주차 차량이 누적돼 있어, 판단에는 절대값이 아니라 5분 변화량만 씁니다.</p>
+</section>
+
+<section class="card">
+  <h2>오늘 올림픽공원 공연</h2>
+  <div id="shows"><p class="note">공연 일정을 불러오는 중…</p></div>
+</section>
+
+<section class="card">
+  <h2>공연 밤에는 이렇게 빠집니다 (2024년 7월 실측)</h2>
+  <svg id="pattern" viewBox="0 0 320 150" role="img" aria-label="2024년 7월 20일 공연 밤과 평일의 주차 중 대수 비교"></svg>
+  <p class="note">2024-07-20(토) 밤, 주차 중 차량이 21:00 1,218대에서 21:45 355대로 45분 만에 약 1,000대 줄었습니다. 공지된 종료 시각(20:30)보다 30~75분 뒤에 몰립니다. 같은 시각 공연 없는 평일은 600대 안팎에서 완만하게 줄어듭니다.</p>
+  <div class="btns"><button class="primary" id="demoBtn">그날 밤 재생해 보기</button><button id="liveBtn" style="display:none">실시간으로 돌아가기</button></div>
+</section>
+
+<section class="card">
+  <details>
+    <summary>어떻게 판단하나요?</summary>
+    <ul class="src">
+      <li>5분 동안 60대 넘게 줄면 "대량 출차 중"으로 봅니다. 2024년 공연 밤 피크는 5분에 80~120대, 평일 저녁은 5분에 10~30대였습니다.</li>
+      <li>대량 출차는 보통 45분 정도 이어졌습니다. 시작 시각을 기준으로 남은 시간을 계산합니다.</li>
+      <li>아직 출차가 시작되지 않았으면, 공지된 종료 시각 + 30~90분을 혼잡 예상 구간으로 보여 줍니다.</li>
+      <li>앱을 늦게 열어 변화량 기록이 없으면, 처음 몇 분은 공연 일정 기준 예상치만 보여 줍니다.</li>
+    </ul>
+    <p class="note" style="margin-top:10px">데이터: 한국체육산업개발 실시간 주차현황(공공데이터포털 15168686), 올림픽공원 입출차 정보(15138735, 2024년 7월), 올림픽공원 공연정보(3037877·홈페이지 공연일정).</p>
+  </details>
+</section>
+</main>
+
+<script src="data2024.js"></script>
+<script>
+(() => {
+const API = 'https://www.ksponco.or.kr/online/main/parkingorsApi.do?apiKey=PARKING21803504';
+const SCHED = 'https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoListAjax.es';
+const SURGE = 60;      // 5분 감소 대수 기준: 대량 출차
+const CALM = 25;       // 이보다 적게 줄면 풀린 것으로 봄
+const SURGE_LEN = 45;  // 대량 출차 지속(분), 2024-07 실측
+const BIG_VENUES = /DOME|체조|올림픽홀|핸드볼|88잔디|체육관|경기장/;
+const $ = id => document.getElementById(id);
+const store = { get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}} };
+
+let demo = null;           // {i, timer}
+let samples = store.get('olpark_samples', []); // [ms, value]
+let shows = []; let schedErr = false;
+const now = () => demo ? demo.t : Date.now();
+const fmt = ms => { const d=new Date(ms); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
+const n = x => x.toLocaleString('ko-KR');
+
+// ---------- 공연 일정 ----------
+const DOW = ['일','월','화','수','목','금','토'];
+function parseTimeAfter(s){
+  const m = s.match(/(오전|오후)?\s*(\d{1,2})\s*(?::|시)\s*(\d{1,2})?\s*(분)?|(\d{1,2})\s*(PM|AM|pm|am)/);
+  if(!m) return null;
+  if(m[5]){ let h=+m[5]; if(/pm/i.test(m[6])&&h<12) h+=12; return [h,0]; }
+  let h=+m[2], mi=m[3]?+m[3]:0; if(m[1]==='오후'&&h<12) h+=12; if(!m[1]&&h<9) h+=12; return [h,mi];
+}
+function startFor(ev, day){
+  const s = (ev.tm||'').replace(/\s+/g,' ');
+  const M=day.getMonth()+1, D=day.getDate(), w=DOW[day.getDay()];
+  const anchors=[new RegExp(M+'월\\s*'+D+'일'), new RegExp('(^|\\D)'+M+'\\.\\s*'+D+'(\\D|$)'), new RegExp('\\('+w+'\\)'), new RegExp(w+'요일')];
+  for(const a of anchors){ const i=s.search(a); if(i>=0){ const t=parseTimeAfter(s.slice(i).replace(a,'')); if(t) return t; } }
+  return parseTimeAfter(s);
+}
+function durFor(ev){ const m=(ev.ndTm||'').match(/(\d{2,3})/); if(m) return +m[1]; return /DOME|체조/.test(ev.plc||'')?150:120; }
+async function loadShows(){
+  const d=new Date(), ym=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0');
+  const today=d.toISOString().slice(0,10);
+  const local=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  try{
+    const r=await fetch(SCHED,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nowYM:ym,plcCd:''})});
+    const j=await r.json(); const all=[].concat(...(Array.isArray(j)?j:[j]));
+    const seen=new Set();
+    shows = all.filter(e=>e.beginDt<=local && e.endDt>=local && BIG_VENUES.test(e.plc||''))
+      .filter(e=>{const k=e.title+e.plc; if(seen.has(k)) return false; seen.add(k); return true;})
+      .map(e=>{ const t=startFor(e,d); const dur=durFor(e); let st=null,en=null;
+        if(t){ st=new Date(d); st.setHours(t[0],t[1],0,0); en=new Date(st.getTime()+dur*60000); }
+        return {title:e.title, plc:(e.plc||'').trim(), start:st, end:en, dur}; })
+      .sort((a,b)=>(a.end||0)-(b.end||0));
+    schedErr=false;
+    store.set('olpark_shows',{day:local, shows:shows.map(s=>({...s,start:s.start&&+s.start,end:s.end&&+s.end}))});
+  }catch(e){
+    const c=store.get('olpark_shows',null);
+    if(c&&c.day===local) shows=c.shows.map(s=>({...s,start:s.start&&new Date(s.start),end:s.end&&new Date(s.end)}));
+    else schedErr=true;
+  }
+  renderShows();
+}
+function renderShows(){
+  const box=$('shows');
+  if(demo){ box.innerHTML='<div class="show"><div class="t">(데모) SG워너비 콘서트 : 우리의 노래 2024 앙코르</div><div class="m">KSPO DOME · 18:00 시작 · 약 150분 → 공지 종료 20:30</div><span class="win">혼잡 예상 21:00 ~ 22:00</span></div><div class="show"><div class="t">(데모) 2024 Whee In 1ST WORLD TOUR</div><div class="m">올림픽홀 · 18:00 시작 · 약 120분 → 공지 종료 20:00</div></div>'; return; }
+  if(schedErr){ box.innerHTML='<p class="note">공연 일정을 불러오지 못했습니다. 올림픽공원 홈페이지 공연일정을 확인해 주세요.</p>'; return; }
+  if(!shows.length){ box.innerHTML='<p class="note">오늘은 대형 공연장 공연이 없습니다. 출차 혼잡이 생길 가능성이 낮습니다.</p>'; return; }
+  box.innerHTML=shows.map(s=>{
+    const w = s.end ? `<span class="win">혼잡 예상 ${fmt(+s.end+30*60000)} ~ ${fmt(+s.end+90*60000)}</span>` : '<span class="win">시작 시각 확인 필요</span>';
+    const tt = s.start ? `${fmt(+s.start)} 시작 · 약 ${s.dur}분 → 공지 종료 ${fmt(+s.end)}` : '시각 정보 없음';
+    return `<div class="show"><div class="t">${esc(s.title)}</div><div class="m">${esc(s.plc)} · ${tt}</div>${w}</div>`;
+  }).join('');
+}
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// ---------- 실시간 값 ----------
+async function poll(){
+  if(demo) return;
+  try{
+    const r=await fetch(API,{cache:'no-store'}); const j=JSON.parse(await r.text());
+    const v=+(j[0]&&j[0].parking_sum); if(!isFinite(v)) throw 0;
+    const t=Date.now(); samples.push([t,v]);
+    samples=samples.filter(s=>t-s[0]<3*3600e3); store.set('olpark_samples',samples);
+    $('liveNote').dataset.err='';
+  }catch(e){ $('liveNote').dataset.err='1'; }
+  render();
+}
+function valueAt(ms){ // 가장 가까운 과거 표본
+  let best=null; for(const s of samples){ if(s[0]<=ms+30e3) best=s; } return best;
+}
+function drop5(){
+  if(samples.length<2) return null;
+  const last=samples[samples.length-1], ref=valueAt(last[0]-5*60e3);
+  if(!ref||ref===last||last[0]-ref[0]<4*60e3) return null;
+  return Math.round((ref[1]-last[1])*5*60e3/(last[0]-ref[0]));
+}
+function surgeOnset(){ // 최근 90분 안에서 처음으로 5분 감소가 SURGE 이상이 된 시각
+  for(let i=0;i<samples.length;i++){ const s=samples[i]; if(now()-s[0]>90*60e3) continue;
+    const ref=valueAt(s[0]-5*60e3); if(ref&&s[0]-ref[0]>=4*60e3 && (ref[1]-s[1])*5*60e3/(s[0]-ref[0])>=SURGE) return s[0]; }
+  return null;
+}
+
+// ---------- 판단 ----------
+function decide(){
+  const t=now(), d=drop5(), onset=surgeOnset();
+  const lastEnd = shows.filter(s=>s.end).map(s=>+s.end).filter(e=>e<t+4*3600e3).sort((a,b)=>b-a)[0];
+  const inWindow = lastEnd && t>=lastEnd+15*60e3 && t<=lastEnd+110*60e3;
+  const before = lastEnd && t<lastEnd+15*60e3;
+  if(d!==null && d>=SURGE){
+    const left=Math.max(5, Math.round(((onset||t)+SURGE_LEN*60e3-t)/60e3/5)*5);
+    return {cls:'s-bad', big:'대량 출차 중', advice:`지금 나가면 줄을 섭니다. 약 ${left}분 뒤 출발을 권해요.`, why:`최근 5분 동안 ${n(d)}대가 빠졌어요(평소 저녁은 10~30대). 2024년 공연 밤에는 이런 흐름이 약 45분 이어졌습니다.`};
+  }
+  if(onset && d!==null && d<CALM){
+    return {cls:'s-ok', big:'거의 풀렸어요', advice:'지금 출발해도 괜찮아요.', why:`${fmt(onset)}에 시작된 대량 출차가 잦아들었어요(최근 5분 ${n(Math.max(d,0))}대).`};
+  }
+  if(onset && d!==null){
+    const left=Math.max(5, Math.round((onset+SURGE_LEN*60e3-t)/60e3/5)*5);
+    return {cls:'s-warn', big:'빠지는 중', advice:`조금 더 기다리면 편해요. 약 ${left}분.`, why:`최근 5분 ${n(d)}대 감소. ${fmt(onset)}부터 출차가 몰렸어요.`};
+  }
+  if(inWindow){
+    return {cls:'s-warn', big:'곧 몰릴 수 있어요', advice:`공지 종료 ${fmt(lastEnd)} 기준, ${fmt(lastEnd+30*60e3)}~${fmt(lastEnd+90*60e3)}에 가장 붐볐어요.`, why: d===null?'앱을 연 지 얼마 안 돼 실시간 변화량을 모으는 중입니다(5분 필요).':`아직 대량 출차는 시작되지 않았어요(최근 5분 ${n(d)}대).`};
+  }
+  if(before){
+    return {cls:'s-ok', big:'공연 중', advice:`공지 종료 ${fmt(lastEnd)}. 출차는 보통 그 뒤 30~90분에 몰려요.`, why:'공연 시작 전후에는 주차장이 거의 찹니다(2024-07-20 17:30 2,037대 / 2,200대).'};
+  }
+  return {cls:'s-ok', big:'원활', advice: schedErr?'공연 일정을 확인하지 못했어요. 실시간 변화량으로만 판단합니다.':(shows.length?'지금은 공연 출차 시간대가 아니에요.':'오늘은 대형 공연이 없어요.'), why: d===null?'실시간 변화량을 모으는 중입니다.':`최근 5분 변화 ${d>=0?'−':'+'}${n(Math.abs(d))}대.`};
+}
+
+// ---------- 그리기 ----------
+function spark(){
+  const svg=$('spark'), pts=samples.filter(s=>now()-s[0]<90*60e3);
+  if(pts.length<2){ svg.innerHTML='<text x="160" y="50" text-anchor="middle" font-size="12" fill="currentColor" opacity=".6">기록이 쌓이면 추이가 보입니다</text>'; return; }
+  const xs=pts.map(p=>p[0]), ys=pts.map(p=>p[1]); const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+  const X=t=>8+(t-x0)/Math.max(1,x1-x0)*304, Y=v=>80-(v-y0)/Math.max(1,y1-y0)*68;
+  svg.innerHTML=`<polyline fill="none" stroke="var(--brand)" stroke-width="2.5" stroke-linejoin="round" points="${pts.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')}"/>`+
+   `<text x="8" y="10" font-size="10" fill="currentColor" opacity=".6">${n(y1)}</text><text x="8" y="89" font-size="10" fill="currentColor" opacity=".6">${fmt(x0)}</text><text x="312" y="89" font-size="10" text-anchor="end" fill="currentColor" opacity=".6">${fmt(x1)}</text>`;
+}
+function patternChart(hl){
+  const P=window.PATTERN_2024, svg=$('pattern'); const W=320,H=150,L=34,R=8,T=10,B=24;
+  const N=P.d20.v.length, X=i=>L+i/(N-1)*(W-L-R), Y=v=>T+(1-v/2200)*(H-T-B);
+  const line=(arr,c,w,dash)=>`<polyline fill="none" stroke="${c}" stroke-width="${w}" ${dash?'stroke-dasharray="4 3"':''} points="${arr.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1)).join(' ')}"/>`;
+  let g='';
+  for(const v of [0,1000,2000]) g+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${L-4}" y="${Y(v)+3}" font-size="9" text-anchor="end" fill="var(--sub)">${n(v)}</text>`;
+  for(const h of [15,18,21,24]){const i=(h-15)*12; g+=`<text x="${X(Math.min(i,N-1))}" y="${H-8}" font-size="9" text-anchor="${h===24?'end':h===15?'start':'middle'}" fill="var(--sub)">${h}시</text>`;}
+  const iEnd=(20.5-15)*12; g+=`<line x1="${X(iEnd)}" x2="${X(iEnd)}" y1="${T}" y2="${H-B}" stroke="var(--sub)" stroke-dasharray="2 3"/><text x="${X(iEnd)-3}" y="${T+9}" font-size="9" text-anchor="end" fill="var(--sub)">공지 종료</text>`;
+  g+=`<rect x="${X(72)}" y="${T}" width="${X(81)-X(72)}" height="${H-T-B}" fill="var(--bad)" opacity=".10"/>`;
+  g+=line(P.weekday.v,'var(--sub)',1.5,true)+line(P.d20.v,'var(--brand)',2.5,false);
+  if(hl!=null) g+=`<circle cx="${X(hl)}" cy="${Y(P.d20.v[hl])}" r="4.5" fill="var(--bad)"/>`;
+  g+=`<text x="${X(30)}" y="${Y(2037)-6}" font-size="9" text-anchor="middle" fill="var(--brand)">공연 밤</text><text x="${W-R}" y="${Y(700)-4}" font-size="9" text-anchor="end" fill="var(--sub)">평일</text>`;
+  svg.innerHTML=g;
+}
+function render(){
+  const s=decide(); const c=$('statusCard'); c.className='card status '+s.cls;
+  $('sBig').textContent=s.big; $('sAdvice').textContent=s.advice; $('sWhy').textContent=s.why;
+  const d=drop5(); $('vDrop').innerHTML = d===null?'<small>모으는 중</small>':(d>=0?'−':'+')+n(Math.abs(d))+'<small> 대</small>';
+  const last=samples[samples.length-1]; $('vNow').innerHTML= last? n(last[1])+'<small> 대</small>':'–';
+  if($('liveNote').dataset.err==='1'&&!demo) $('sWhy').textContent+=' (실시간 값을 받지 못했습니다. 잠시 뒤 다시 시도합니다.)';
+  $('clock').textContent = (demo?'재생 ':'')+fmt(now());
+  spark();
+}
+
+// ---------- 데모: 2024-07-20 밤 재생 ----------
+function startDemo(){
+  stopDemo(true);
+  const P=window.PATTERN_2024.d20; const base=new Date('2024-07-20T15:00:00').getTime();
+  const saved=samples; demo={i:Math.round((19.5-15)*12), saved};
+  samples=P.v.slice(0,demo.i+1).map((v,i)=>[base+i*5*60e3,v]);
+  shows=[{title:'(데모) KSPO DOME 공연',plc:'KSPO DOME',start:new Date('2024-07-20T18:00:00'),end:new Date('2024-07-20T20:30:00'),dur:150}];
+  demo.t=samples[samples.length-1][0];
+  $('demoBanner').style.display='block'; $('liveBtn').style.display='inline-block'; $('demoBtn').textContent='처음부터 다시';
+  renderShows(); patternChart(demo.i); render();
+  demo.timer=setInterval(()=>{ demo.i++; if(demo.i>=P.v.length){ clearInterval(demo.timer); return; }
+    const t=base+demo.i*5*60e3; samples.push([t,P.v[demo.i]]); demo.t=t; patternChart(demo.i); render(); }, 1200);
+  scrollTo({top:0,behavior:'smooth'});
+}
+function stopDemo(quiet){
+  if(!demo) return; clearInterval(demo.timer); samples=demo.saved; demo=null;
+  $('demoBanner').style.display='none'; $('liveBtn').style.display='none'; $('demoBtn').textContent='그날 밤 재생해 보기';
+  patternChart(null); if(!quiet){ loadShows(); render(); }
+}
+$('demoBtn').onclick=startDemo; $('liveBtn').onclick=()=>stopDemo(false);
+
+patternChart(null);
+if(new URLSearchParams(location.search).has('demo')) startDemo(); else { loadShows(); poll(); }
+setInterval(poll, 60e3);
+setInterval(()=>{ if(!demo) render(); }, 15e3);
+if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>

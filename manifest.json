@@ -1,0 +1,1 @@
+{"name":"올팍 출차시계","short_name":"출차시계","description":"올림픽공원 공연 후 지금 나가면 막히는지 알려 줍니다.","start_url":"./","display":"standalone","background_color":"#f6f5f1","theme_color":"#0f3d3e","lang":"ko","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
