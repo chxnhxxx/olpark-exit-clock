@@ -10,20 +10,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: 이번 달·다음 달 공연 일정 받기
+      - name: 지난달·이번 달·다음 달 공연 일정 받기
         run: |
           node -e '
           const U="https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoListAjax.es";
           const now=new Date(Date.now()+9*3600e3);
-          const yms=[0,1].map(k=>{const d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()+k,1));return d.getUTCFullYear()+String(d.getUTCMonth()+1).padStart(2,"0")});
+          const yms=[-1,0,1].map(k=>{const d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()+k,1));return d.getUTCFullYear()+String(d.getUTCMonth()+1).padStart(2,"0")});
           (async()=>{const months={};
             for(const ym of yms){const r=await fetch(U,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({nowYM:ym,plcCd:""})});
               if(!r.ok) throw new Error(ym+" "+r.status); months[ym]=await r.json();}
             require("fs").writeFileSync("schedule.json",JSON.stringify({updated:new Date().toISOString(),months}));
           })().catch(e=>{console.error(e);process.exit(1)});'
+      - name: 문화공공데이터광장 공연정보 보강
+        id: enrich
+        env:
+          KCISA_SERVICE_KEY: ${{ secrets.KCISA_SERVICE_KEY }}
+        run: |
+          test -n "$KCISA_SERVICE_KEY" && python scripts/enrich_performances.py
+        continue-on-error: true
       - name: 바뀌었으면 커밋
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add schedule.json
           git diff --cached --quiet || (git commit -m "공연 일정 갱신" && git push)
+      - name: 공연정보 보강 실패 표시
+        if: steps.enrich.outcome == 'failure'
+        run: exit 1
