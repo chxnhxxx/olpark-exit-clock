@@ -33,7 +33,7 @@ jobs:
         env:
           KOPIS_SERVICE_KEY: ${{ secrets.KOPIS_SERVICE_KEY }}
         run: |
-          if [ -n "$KOPIS_SERVICE_KEY" ]; then cd scripts && cp ../schedule.json . && python kopis_enrich.py && mv schedule.json kopis_report.md ..; else echo "KOPIS 키가 없어 건너뜀"; fi
+          if [ -n "$KOPIS_SERVICE_KEY" ]; then python scripts/kopis_enrich.py; else echo "KOPIS 키가 없어 건너뜀"; fi
         continue-on-error: true
       - name: 바뀌었으면 커밋
         run: |
