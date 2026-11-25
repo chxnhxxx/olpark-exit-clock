@@ -116,6 +116,9 @@ for start, end in months:
             root = get("pblprfr", stdate=start.strftime("%Y%m%d"), eddate=end.strftime("%Y%m%d"),
                        cpage=page, rows=100, shprfnmfct=fac)
             rows = root.findall(".//db")
+            if page == 1:
+                names = sorted({(db.findtext("fcltynm") or "")[:30] for db in rows})[:6]
+                print(f"KOPIS 목록 {start:%Y-%m} '{fac}': {len(rows)}건 {names} root={root.tag} {ET.tostring(root)[:120] if not rows else ''}")
             for db in rows:
                 rid = db.findtext("mt20id")
                 if rid and hall(db.findtext("fcltynm")):
