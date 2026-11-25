@@ -342,9 +342,51 @@ h1#head{font-weight:500}
 .wait-ideas li{background:var(--paper);box-shadow:inset 0 0 0 1px var(--line)}
 .busy{background:var(--ivory)}
 .strip .p{background:var(--ink3);opacity:.55}
+
+/* 넓은 화면(심사·PC): 왼쪽 소개 + 오른쪽 휴대폰 크기 앱 */
+.intro{display:none}
+@media (min-width:1024px){
+  html{background:var(--surface)}
+  body{background:var(--surface)}
+  .layout{display:grid;grid-template-columns:minmax(380px,520px) 440px;gap:clamp(48px,6vw,104px);justify-content:center;align-items:start;max-width:1240px;margin:0 auto;padding:56px 40px 64px}
+  .intro{display:block;padding-top:24px}
+  @media (min-height:980px){.intro{position:sticky;top:56px}}
+  .app{background:var(--bg);border-radius:36px 0 36px 36px;overflow:clip;box-shadow:0 0 0 1px var(--hair),0 30px 60px -30px rgba(30,28,25,.25);min-height:820px}
+  .app .wrap{max-width:none;padding-left:20px;padding-right:20px}
+  .demo-band{position:sticky;top:0}
+  #install{display:none!important}
+}
+.i-kicker{margin:0 0 18px;font-size:14px;font-weight:500;color:var(--brass);letter-spacing:0}
+.i-title{margin:0;font-size:clamp(40px,3.6vw,54px);line-height:1.12;font-weight:400;letter-spacing:-.03em;color:var(--ink)}
+.i-lead{margin:22px 0 0;font-size:18px;line-height:1.65;color:var(--ink2);max-width:30em}
+.i-cta{display:flex;gap:12px;margin-top:30px}
+.i-cta .btn{width:auto;padding:0 26px;margin-top:0}
+.i-note{margin:14px 0 0;font-size:14px;line-height:1.6;color:var(--ink3);max-width:34em}
+.i-points{list-style:none;padding:0;margin:40px 0 0;border-top:1px solid var(--line2)}
+.i-points li{display:grid;grid-template-columns:120px 1fr;gap:16px;padding:16px 0;border-bottom:1px solid var(--line2);font-size:15px;line-height:1.6;color:var(--ink2)}
+.i-points b{font-size:22px;line-height:1.2;font-weight:400;letter-spacing:-.02em;color:var(--ink)}
+.i-src{margin:22px 0 0;font-size:13px;line-height:1.7;color:var(--ink3)}
 </style>
 </head>
 <body class="s-wait">
+<div class="layout">
+<aside class="intro" aria-label="서비스 소개">
+  <p class="i-kicker">올림픽공원 공공데이터 서비스</p>
+  <h2 class="i-title">공연 끝난 밤,<br>언제 나가야<br>줄을 안 설까요?</h2>
+  <p class="i-lead">올팍 출차시계는 올림픽공원 실시간 주차대수를 1분마다 읽어, 지금 주차장을 나가면 줄을 서는지와 언제 출발하면 좋은지를 한 문장으로 알려 줍니다.</p>
+  <div class="i-cta">
+    <button class="btn primary" id="deskDemo">공연 밤 화면 보기</button>
+    <button class="btn ghost" id="deskLive" hidden>실시간 화면으로</button>
+  </div>
+  <p class="i-note" id="deskNote">2024년 7월 20일 KSPO DOME 공연 밤의 실제 기록을 1분씩 다시 보여 드려요. 오른쪽 화면이 휴대폰에서 보이는 모습이에요.</p>
+  <ol class="i-points">
+    <li><b>1분마다</b><span>한국체육산업개발 실시간 주차대수 API로 나가는 차 수를 셉니다.</span></li>
+    <li><b>215,528건</b><span>2024년 7월 입출차 기록으로 공연 밤 붐비는 흐름(약 45분)을 재현했습니다.</span></li>
+    <li><b>자동</b><span>올림픽공원 공연 일정을 3시간마다 읽어 끝나는 시간을 미리 알려 줍니다.</span></li>
+  </ol>
+  <p class="i-src">자료: 실시간 주차현황(공공데이터포털 15168686), 주차장 입출차 정보(15138735), 올림픽공원 공연일정<br>휴대폰에서 열면 앱 화면만 보여요 · 홈 화면에 추가해 앱처럼 쓸 수 있어요</p>
+</aside>
+<main class="app">
 <div class="demo-band" id="demoBand"><span class="tag"><b>예시</b>2024.7.20 공연 밤 다시 보기</span><button id="liveBtn">끝내기</button></div>
 
 <div id="first">
@@ -421,6 +463,8 @@ h1#head{font-weight:500}
     </div>
   </section>
   <footer><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="currentColor" opacity=".25"/><circle cx="16" cy="16" r="9.2" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M16 10.6V16h6.2" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>올팍 출차시계 · 공공데이터 활용</footer>
+</div>
+</main>
 </div>
 <div class="sr" aria-live="polite" id="announce"></div>
 
@@ -752,6 +796,7 @@ function render(){
   else { tip.textContent=s.tip||''; tip.hidden=!s.tip; }
   $('alarm').hidden=!s.alarm || !!demo;
   $('waitIdeas').hidden=!s.wait;
+  $('deskLive').hidden=!demo; $('deskDemo').textContent=demo?'처음부터 다시 보기':'공연 밤 화면 보기';
   { const ib=$('install'); if(ib.dataset.ok!=='0') ib.style.display=demo?'none':''; }
   if(alarmArmed && s.go){ $('alarmTxt').textContent=`알림 켜짐 · ${fmt(s.go)}에 진동과 소리`; document.title=`출발까지 ${ceilMin(s.go-now())}분 · 올팍 출차시계`; } else document.title='올팍 출차시계';
   // 신선도
@@ -816,7 +861,7 @@ function stopDemo(quiet){
   $('demoBand').style.display='none'; document.documentElement.style.setProperty('--band','0px'); $('demoBtn').textContent='예시 보기';
   if(!quiet){ renderShows(); loadShows(); render(); }
 }
-$('demoBtn').onclick=startDemo; $('liveBtn').onclick=()=>stopDemo(false);
+$('demoBtn').onclick=startDemo; $('deskDemo').onclick=startDemo; $('deskLive').onclick=()=>stopDemo(false); $('liveBtn').onclick=()=>stopDemo(false);
 
 const q=new URLSearchParams(location.search);
 if(q.has('demo')){ startDemo(); const at=q.get('at'); if(at){ const [h,m]=at.split(':').map(Number); const k=(h*60+m)-15*60; clearInterval(demo.timer); while(demo.m<k&&demo.m<DEMO_END) demoStep(); renderShows(); render(); } }
