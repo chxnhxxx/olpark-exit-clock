@@ -1,4 +1,5 @@
 """Enrich the park schedule with KCISA performances whose identity can be verified."""
+from performance_match import match_event
 import json
 import os
 import pathlib
@@ -28,22 +29,9 @@ while True:
     items = root.findall(".//item")
     count += len(items)
     for item in items:
-        title = (item.findtext("title") or "").strip()
-        event_id = None
-        for field in ("url", "referenceIdentifier", "source"):
-            link = urllib.parse.urlparse(item.findtext(field) or "")
-            if link.hostname in ("www.ksponco.or.kr", "ksponco.or.kr"):
-                event_id = urllib.parse.parse_qs(link.query).get("evtSeq", [None])[0]
-                if event_id in events:
-                    break
-        if event_id not in events:
-            # Only dated, venue-specific titles can identify a run without a shared ID.
-            ids = [key for key, rows in events.items() if rows[0]["title"].strip() == title
-                   and rows[0]["beginDt"][:4] in title and rows[0]["plc"].strip()
-                   in " ".join(item.findtext(f) or "" for f in ("spatial", "subjectKeyword"))]
-            if len(ids) != 1:
-                continue
-            event_id = ids[0]
+        event_id = match_event({child.tag: child.text for child in item}, events)
+        if event_id is None:
+            continue
         matched.add(event_id)
         for event in events[event_id]:
             genre = (item.findtext("subjectCategory") or "").strip()
