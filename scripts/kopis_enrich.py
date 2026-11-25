@@ -21,7 +21,7 @@ KEY = os.environ["KOPIS_SERVICE_KEY"]
 BASES = ("https://www.kopis.or.kr/openApi/restful/", "http://www.kopis.or.kr/openApi/restful/")
 HALLS = {"체조경기장": "KSPO DOME", "올림픽홀": "올림픽홀",
          "핸드볼경기장": "티켓링크 라이브 아레나", "우리금융아트홀": "우리금융아트홀"}
-FACILITY_QUERIES = ("올림픽공원", "KSPO", "올림픽홀", "우리금융아트홀", "티켓링크 라이브 아레나", "핸드볼경기장")
+FACILITY_QUERIES = ("올림픽공원",)
 
 
 def get(path, **params):
@@ -121,7 +121,7 @@ for start, end in months:
                 print(f"KOPIS 목록 {start:%Y-%m} '{fac}': {len(rows)}건 {names} root={root.tag} {ET.tostring(root)[:120] if not rows else ''}")
             for db in rows:
                 rid = db.findtext("mt20id")
-                if rid and hall(db.findtext("fcltynm")):
+                if rid and "올림픽공원" in (db.findtext("fcltynm") or ""):
                     records[rid] = {c.tag: (c.text or "").strip() for c in db}
             if len(rows) < 100 or page >= 20:
                 break
@@ -132,9 +132,13 @@ for rid, rec in records.items():
     if d is not None:
         rec["prfruntime"] = (d.findtext("prfruntime") or "").strip()
         rec["dtguidance"] = (d.findtext("dtguidance") or "").strip()
+        rec["fcltynm"] = (d.findtext("fcltynm") or rec.get("fcltynm") or "").strip()
+        print("KOPIS 상세:", rec.get("prfnm", "")[:30], "|", rec["fcltynm"], "|", rec["prfruntime"])
+    time.sleep(0.3)
     rec["hall"] = hall(rec.get("fcltynm"))
     rec["from"], rec["to"] = kdate(rec.get("prfpdfrom")), kdate(rec.get("prfpdto"))
     rec["minutes"] = runtime_minutes(rec.get("prfruntime"))
+records = {r: rec for r, rec in records.items() if rec["hall"]}
 
 # --- match official shows to KOPIS -------------------------------------------
 lines, matched, filled, used = [], {}, [], set()
