@@ -588,14 +588,17 @@ function chart(s){
   const ylab=(y,l,c)=>`<text x="${L-8}" y="${y+4.5}" font-size="12.5" font-weight="500" text-anchor="end" fill="${c}">${l}</text>`;
   g+=ylab((y6+y0)/2,'한산','var(--ink3)')+ylab((yJ+y6)/2,'보통','var(--ink3)')+ylab(Math.max(T+4,(yJ+T)/2),'막힘','var(--ember-ink)');
   // x축: 애플 날씨처럼 지금·10분 단위 눈금
-  const ticks=[[x0,'30분 전'],[t-15*MIN,'15분 전'],[t,'지금'],[t+15*MIN,'15분 뒤'],[t+30*MIN,'30분 뒤']]; if(x1>t+40*MIN) ticks[4]=[x1,Math.round((x1-t)/MIN)+'분 뒤'];
-  // 글자가 겹치면 덜 중요한 눈금(15분)부터 뺌
-  const tw=l=>l.length*11.5+6, ext=(x,l,i,n)=>{ const c=X(x), w=tw(l); return i===0?[c,c+w]:i===n-1?[c-w,c]:[c-w/2,c+w/2]; };
-  const order=[0,ticks.length-1,2,1,3], keep=[];
-  for(const i of order){ const [x,l]=ticks[i], e=ext(x,l,i,ticks.length); if(keep.every(k=>e[1]<k.e[0]||e[0]>k.e[1])) keep.push({i,e}); }
-  ticks.forEach(([x,l],i)=>{ if(!keep.some(k=>k.i===i)) return; const a=i===0?'start':i===ticks.length-1?'end':'middle', isNow=x===t;
-    g+=`<line x1="${X(x)}" x2="${X(x)}" y1="${y0}" y2="${y0+4}" stroke="var(--line2)"/>`;
-    g+=`<text x="${X(x)}" y="${H-9}" font-size="12" font-weight="${isNow?700:500}" text-anchor="${a}" fill="${isNow?'var(--ink)':'var(--ink3)'}">${l}</text>`; });
+  // x축: 실제 시각을 항상 보여 줌(15분 단위 정각 눈금 + '지금 21:20'). 겹치면 정각 눈금을 뺌
+  const tw=l=>[...l].reduce((w,c)=>w+(/[0-9:]/.test(c)?7:/\s/.test(c)?3.5:12),0)+8;
+  const nowL='지금 '+fmt(t), ticks=[{x:t,l:nowL,now:true}];
+  const q=15*MIN; for(let x=Math.ceil(x0/q)*q;x<=x1;x+=q){ if(Math.abs(x-t)<MIN) continue; ticks.push({x,l:fmt(x)}); }
+  const keep=[];
+  for(const tk of ticks){ const c=X(tk.x), w=tw(tk.l); let e0=c-w/2,e1=c+w/2;
+    if(e0<L-4){ e0=L-4; e1=e0+w; tk.a='start'; tk.tx=e0+4; } else if(e1>W-R+4){ e1=W-R+4; e0=e1-w; tk.a='end'; tk.tx=e1-4; } else { tk.a='middle'; tk.tx=c; }
+    if(keep.every(k=>e1<k.e0||e0>k.e1)){ tk.e0=e0; tk.e1=e1; keep.push(tk); } }
+  for(const tk of keep){
+    g+=`<line x1="${X(tk.x)}" x2="${X(tk.x)}" y1="${y0}" y2="${y0+4}" stroke="${tk.now?'var(--ink)':'var(--line2)'}"/>`;
+    g+=`<text x="${tk.tx}" y="${H-9}" font-size="12" font-weight="${tk.now?600:400}" text-anchor="${tk.a}" fill="${tk.now?'var(--ink)':'var(--ink3)'}" class="num">${tk.l}</text>`; }
   // 지금 세로선(가는 점선)
   g+=`<line x1="${xn}" x2="${xn}" y1="${T-10}" y2="${y0}" stroke="var(--ink3)" stroke-width="1" stroke-dasharray="2 3"/>`;
   if(valid.length<3 && !future.length) g+=`<text x="${(L+xn)/2}" y="${(yJ+y6)/2+5}" font-size="14" font-weight="500" text-anchor="middle" fill="var(--ink3)">몇 분 지나면 그려져요</text>`;
