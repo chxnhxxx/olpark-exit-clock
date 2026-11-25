@@ -366,6 +366,17 @@ h1#head{font-weight:500}
 .i-points li{display:grid;grid-template-columns:120px 1fr;gap:16px;padding:16px 0;border-bottom:1px solid var(--line2);font-size:15px;line-height:1.6;color:var(--ink2)}
 .i-points b{font-size:22px;line-height:1.2;font-weight:400;letter-spacing:-.02em;color:var(--ink)}
 .i-src{margin:22px 0 0;font-size:13px;line-height:1.7;color:var(--ink3)}
+
+/* 내 공연 고르기 */
+.for-show{margin:8px 0 0;font-size:14px;line-height:1.5;color:var(--ink2)}
+.for-show a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--ember);text-underline-offset:3px}
+.s-go .for-show{color:var(--bg)}
+.pick-l{margin:10px 0 0;font-size:14px;color:var(--ink2)}
+.pick{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+.pick button{font:inherit;font-size:14px;font-weight:500;min-height:40px;padding:0 14px;border-radius:200px;border:1px solid var(--line2);background:var(--paper);color:var(--ink);cursor:pointer}
+.pick button[aria-checked="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.show.mine .t{text-decoration:underline;text-decoration-color:var(--ember);text-decoration-thickness:2px;text-underline-offset:5px}
+.mine-tag{display:inline-block;margin-bottom:6px;font-size:12px;font-weight:500;padding:2px 10px;border-radius:200px;background:var(--ember);color:#1E1C19}
 </style>
 </head>
 <body class="s-wait">
@@ -400,6 +411,7 @@ h1#head{font-weight:500}
     <div class="top">
       <div class="badge" id="chip"><i></i><span id="chipTxt">확인 중</span></div>
       <h1 id="head">주차장 상황을 보는 중이에요</h1>
+      <p class="for-show" id="forShow" hidden></p>
     </div>
     <div class="hero" id="hero">
       <div class="lab" id="hLab"></div>
@@ -430,7 +442,7 @@ h1#head{font-weight:500}
     </div>
   </section>
 
-  <section class="sec">
+  <section class="sec" id="showsSec">
     <div class="card">
       <h2>오늘 공연</h2>
       <div id="shows"><p class="cap">공연 정보를 불러오는 중이에요.</p></div>
@@ -476,7 +488,15 @@ const SCHED = 'https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoListAjax
 const SURGE = 60;      // 5분 감소 대수 기준: 대량 출차
 const CALM = 25;       // 이보다 적게 줄면 풀린 것으로 봄
 const SURGE_LEN = 45;  // 대량 출차 지속(분), 2024-07 실측
-const BIG_VENUES = /DOME|체조|올림픽홀|핸드볼|88잔디|체육관|경기장/;
+const BIG_VENUES = /DOME|체조|올림픽홀|핸드볼|88잔디|체육관|경기장|라이브 아레나|아트홀/;
+// 올림픽공원 안 공연장(세 주차장을 함께 씀). 이름은 기관 공연일정의 plc 값 기준
+const PARK_VENUES = [
+  {key:'dome', name:'KSPO DOME', re:/DOME|체조/},
+  {key:'hall', name:'올림픽홀', re:/올림픽홀/},
+  {key:'arena', name:'티켓링크 라이브 아레나', re:/라이브 아레나|핸드볼/},
+  {key:'art', name:'우리금융아트홀', re:/우리금융|아트홀/},
+];
+const venueOf = plc => (PARK_VENUES.find(v=>v.re.test(plc||''))||{key:'etc',name:(plc||'').trim()});
 const $ = id => document.getElementById(id);
 const store = { get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}} };
 
@@ -520,7 +540,7 @@ async function loadShows(){
       .filter(e=>{const k=e.title+e.plc; if(seen.has(k)) return false; seen.add(k); return true;})
       .map(e=>{ const t=startFor(e,d); const dur=durFor(e); let st=null,en=null;
         if(t){ st=new Date(d); st.setHours(t[0],t[1],0,0); en=new Date(st.getTime()+dur*60000); }
-        return {title:e.title, plc:(e.plc||'').trim(), start:st, end:en, dur}; })
+        const v=venueOf(e.plc); return {title:e.title, plc:v.name, venue:v.key, start:st, end:en, dur}; })
       .sort((a,b)=>(a.end||0)-(b.end||0));
     schedErr=false;
     store.set('olpark_shows',{day:local, shows:shows.map(s=>({...s,start:s.start&&+s.start,end:s.end&&+s.end}))});
@@ -576,9 +596,14 @@ function rateSeries(tEnd, minutes){
 
 // ---------- 판단 ----------
 let lastTone=null, alarmArmed=false, wakeLock=null, wentGo=null;
+// 내 공연 고르기: 오늘 공연 중 하나를 고르면 그 공연이 끝나는 시각으로 안내. 안 고르면 가장 늦게 끝나는 공연 기준
+let myKey=null; try{ const m=JSON.parse(localStorage.getItem('olpark-my')||'null'); if(m&&m.day===new Date().toDateString()) myKey=m.key; }catch(e){}
+const showKey=s=>s.title+'|'+s.plc;
+const myShow=()=> myKey ? shows.find(s=>showKey(s)===myKey) : null;
+function pickShow(k){ myKey=k; if(!demo){ try{ localStorage.setItem('olpark-my',JSON.stringify({day:new Date().toDateString(),key:k})); }catch(e){} } renderShows(); render(); }
 function decide(){
   const t=now(), d=drop5(), onset=surgeOnset();
-  const lastEnd = shows.filter(s=>s.end).map(s=>+s.end).filter(e=>e<t+4*3600e3).sort((a,b)=>b-a)[0];
+  const mine=myShow(); const lastEnd = mine&&mine.end ? +mine.end : shows.filter(s=>s.end).map(s=>+s.end).filter(e=>e<t+4*3600e3).sort((a,b)=>b-a)[0];
   const inWindow = lastEnd && t>=lastEnd && t<=lastEnd+110*MIN;
   const before = lastEnd && t<lastEnd;
   const safeAfter = lastEnd ? fmt(lastEnd+90*MIN) : null;
@@ -634,17 +659,19 @@ function renderShows(){
   const box=$('shows');
   if(schedErr){ box.innerHTML='<p class="cap">'+(liveErr&&!lastOk?'공연 정보를 못 불러왔어요. 잠시 뒤 다시 확인해 주세요.':'공연 정보를 못 불러왔어요. 주차장 상황만 보고 알려 드려요.')+'</p>'; return; }
   if(!shows.length){ box.innerHTML='<div class="empty"><svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="20" fill="var(--bg)"/><path d="M12 22l5 5 11-12" fill="none" stroke="var(--brand)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><div><p class="e1">오늘은 큰 공연이 없어요.</p><p class="e2">나가는 길이 막힐 일은 적어요.</p></div></div>'; return; }
-  const t=now();
-  box.innerHTML=shows.map(s=>{
+  const t=now(), mk=myKey;
+  const pick = shows.length>1 ? '<p class="pick-l">내 공연을 고르면 그 공연 끝나는 시간에 맞춰 알려 드려요.</p><div class="pick" role="radiogroup" aria-label="내 공연 고르기"><button role="radio" aria-checked="'+(!mk)+'" data-k="">전체</button>'+shows.map(s=>'<button role="radio" aria-checked="'+(mk===showKey(s))+'" data-k="'+esc(showKey(s))+'">'+esc(s.plc)+'</button>').join('')+'</div>' : '';
+  box.innerHTML=pick+shows.map(s=>{
     if(!s.start) return `<div class="show"><div class="t">${esc(s.title)}</div><div class="m">${esc(s.plc)} · 시간 정보 없음</div></div>`;
     const a=+s.start, b=+s.end+120*MIN, P=x=>Math.max(0,Math.min(100,(x-a)/(b-a)*100));
     const end=+s.end, j0=end+30*MIN, j1=end+90*MIN;
     const needle = (t>=a&&t<=b)?`<i class="needle" style="left:calc(${P(t)}% - 1.5px)" title="지금"></i>`:'';
-    return `<div class="show"><div class="t">${esc(s.title)}</div><div class="m num"><span>${esc(s.plc)}</span> · <span>${fmt(a)} 시작</span> · <span>${fmt(end)}쯤 끝</span></div>
+    return `<div class="show${mk===showKey(s)?' mine':''}">${mk===showKey(s)?'<span class="mine-tag">내 공연</span>':''}<div class="t">${esc(s.title)}</div><div class="m num"><span>${esc(s.plc)}</span> · <span>${fmt(a)} 시작</span> · <span>${fmt(end)}쯤 끝</span></div>
       <div class="strip" aria-hidden="true"><b class="p" style="left:0;width:${P(end)}%"></b><b class="j" style="left:${P(j0)}%;width:${P(j1)-P(j0)}%"></b><span class="jl" style="left:${(P(j0)+P(j1))/2}%">붐빔</span>${needle}</div>
       <div class="strip-l num" aria-hidden="true"><span style="left:0;transform:none">${fmt(a)}</span><span style="left:${P(end)}%">${fmt(end)} 끝</span></div>
       <div class="busy">${ICON_CLOCK}<span><span class="num">${fmt(j0)} ~ ${fmt(j1)}</span> 나가는 길 붐빔</span></div></div>`;
   }).join('');
+  box.querySelectorAll('.pick button').forEach(b=>b.onclick=()=>pickShow(b.dataset.k||null));
 }
 // 2024-07-20 공연 밤 곡선에서, 몰리기 시작한 뒤 k분째의 1분당 출차(예상 모양)
 const PAT=(()=>{ const v=window.PATTERN_2024.d20.v; let on=0; for(let i=1;i<v.length;i++){ if(v[i-1]-v[i]>=SURGE){ on=i; break; } }
@@ -796,6 +823,7 @@ function render(){
   else { tip.textContent=s.tip||''; tip.hidden=!s.tip; }
   $('alarm').hidden=!s.alarm || !!demo;
   $('waitIdeas').hidden=!s.wait;
+  { const m=myShow(), fv=$('forShow'); if(m && ['show','soon'].includes(s.tone)){ fv.textContent=m.plc+' · '+m.title; fv.hidden=false; } else if(!m && shows.length>1 && ['show','soon'].includes(s.tone)){ fv.innerHTML='공연 '+shows.length+'개 중 가장 늦게 끝나는 공연 기준 · <a href="#showsSec">내 공연 고르기</a>'; fv.hidden=false; } else fv.hidden=true; }
   $('deskLive').hidden=!demo; $('deskDemo').textContent=demo?'처음부터 다시 보기':'공연 밤 화면 보기';
   { const ib=$('install'); if(ib.dataset.ok!=='0') ib.style.display=demo?'none':''; }
   if(alarmArmed && s.go){ $('alarmTxt').textContent=`알림 켜짐 · ${fmt(s.go)}에 진동과 소리`; document.title=`출발까지 ${ceilMin(s.go-now())}분 · 올팍 출차시계`; } else document.title='올팍 출차시계';
