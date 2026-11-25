@@ -12,12 +12,11 @@
   const LAST = 450;
   const API = 'https://www.ksponco.or.kr/online/main/parkingorsApi.do?apiKey=PARKING21803504';
   const SCHEDULE = 'https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoListAjax.es';
-  const VENUE = /DOME|체조|올림픽홀|핸드볼|88잔디|체육관|경기장/i;
   const archive = window.PATTERN_2024.d20.v;
   const patternStart = archive.findIndex((value, index) => index > 0 && archive[index - 1] - value >= SURGE);
   const recordedShows = [
-    { title: '올림픽홀 공연', plc: '올림픽홀', start: BASE + 180 * MIN, end: BASE + 300 * MIN },
-    { title: 'KSPO DOME 공연', plc: 'KSPO DOME', start: BASE + 180 * MIN, end: BASE + 330 * MIN },
+    { title: '올림픽홀 공연', plc: '올림픽홀', start: BASE + 180 * MIN, end: BASE + 300 * MIN, endEstimated: false },
+    { title: 'KSPO DOME 공연', plc: 'KSPO DOME', start: BASE + 180 * MIN, end: BASE + 330 * MIN, endEstimated: false },
   ];
   const listeners = new Set();
   const clock = time => new Date(time + SEOUL).toISOString().slice(11, 16);
@@ -26,6 +25,7 @@
   let player, generation = 0, polling = false, loadingShows = false;
   let lastOk = 0, liveErr = false, schedErr = false, scheduleDay = '', lastScheduleTry = 0;
   let liveShows = [], liveSamples = [], latestState, liveGo = null;
+  let selectionScope = '', selectedKey = null;
 
   function cached(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
@@ -43,34 +43,110 @@
     lastOk = liveSamples.at(-1)?.[0] || 0;
   }
 
-  function parseTime(text) {
-    const m = text.match(/(오전|오후)?\s*(\d{1,2})(?:(?:\s*:\s*|\s*시\s*)(\d{1,2})?(?:\s*분)?(?:\s*(am|pm))?|\s*(am|pm))/i);
-    if (!m) return null;
-    let h = Number(m[2]);
-    const minutes = Number(m[3] || 0), period = (m[1] || m[4] || m[5] || '').toLowerCase();
-    if (period === '오전' || period === 'am') h %= 12;
-    else if (period === '오후' || period === 'pm') h = h % 12 + 12;
-    else if (h < 9) h += 12;
-    return h < 24 && minutes < 60 ? h * 60 + minutes : null;
+  const DAYS = '일월화수목금토';
+  const closed = /휴연|휴관|공연\s*없음|공연\s*없습니다|공연\s*취소/;
+  function timesIn(text) {
+    // The institution uses 7:30PM, 9:00:00PM, 오후 7시 30분, and multiple slots in one clause.
+    const timePattern = /(?<!\d)(?:(오전|오후)\s*)?(\d{1,2})(?:(?:\s*:\s*(\d{2})(?::\d{2})?|\s*시(?:\s*(\d{1,2})\s*분)?)(?:\s*(am|pm))?|\s*(am|pm)|(?!\d))/gi;
+    const times = [];
+    for (const m of text.matchAll(timePattern)) {
+      let h = Number(m[2]);
+      const minute = Number(m[3] || m[4] || 0);
+      const period = (m[1] || m[5] || m[6] || '').toLowerCase();
+      if (!period && !m[0].includes('시') && m[3] === undefined) continue;
+      if (minute > 59 || h > 23 || (period && (h < 1 || h > 12))) continue;
+      if (period) h = h % 12 + (period === '오후' || period === 'pm' ? 12 : 0);
+      else if (h > 0 && h < 9 && m[0].includes('시')) h += 12;
+      times.push(h * 60 + minute);
+    }
+    return times;
   }
-  function startMinutes(item, date) {
-    const weekday = '일월화수목금토'[date.getUTCDay()];
-    const month = date.getUTCMonth() + 1, day = date.getUTCDate();
-    const text = (item.tm || '').replace(/\s+/g, ' ');
-    const datePatterns = [
-      new RegExp('(?:^|\\D)0?' + month + '월\\s*0?' + day + '일'),
-      new RegExp('(?:^|\\D)0?' + month + '\\.\\s*0?' + day + '(?!\\d)'),
-    ];
-    for (const anchor of datePatterns) {
-      const match = anchor.exec(text);
-      if (match) return parseTime(text.slice(match.index + match[0].length));
+
+  function weeklySlots(text, day) {
+    // Ranges may wrap around the end of the week. Commas can also separate two times.
+    const normalized = text.replace(/([일월화수목금토])(?:요일)?\s*[~～–-]\s*([일월화수목금토])(?:요일)?/g,
+      (_, from, to) => {
+        let range = from, i = DAYS.indexOf(from);
+        while (DAYS[i] !== to) { i = (i + 1) % 7; range += DAYS[i]; }
+        return range;
+      }).replace(/([일월화수목금토])(?:요일)?\s*[,·]\s*(?=[일월화수목금토](?:요일)?(?:\s|[,·]))/g, '$1');
+    const anchors = [...normalized.matchAll(/(?<![가-힣\d])(?:매주\s*)?(평일|주말|[월화수목금토일]+)(?:요일)?(?=\s|[:：/)])/g)];
+    if (!anchors.length) return closed.test(normalized) ? [] : timesIn(normalized);
+    const weekday = DAYS[new Date(day + 'T00:00:00Z').getUTCDay()];
+    const common = timesIn(normalized.slice(0, anchors[0].index));
+    const slots = [];
+    let matched = false;
+    for (let i = 0; i < anchors.length; ++i) {
+      const a = anchors[i], days = a[1].replace('평일', '월화수목금').replace('주말', '토일');
+      if (!days.includes(weekday)) continue;
+      matched = true;
+      const clause = normalized.slice(a.index + a[0].length, anchors[i + 1]?.index);
+      if (closed.test(clause)) return [];
+      slots.push(...timesIn(clause));
     }
-    if (/\d{1,2}월\s*\d{1,2}일.*\d{1,2}월\s*\d{1,2}일/.test(text)) return null;
-    for (const part of text.split(/\s*[/|]\s*/)) {
-      const week = part.match(/(?:^|\s|\()([월화수목금토일]+)(?:요일|\)|\s)/);
-      if (week?.[1].includes(weekday)) return parseTime(part.slice(week.index + week[0].length));
+    return matched ? slots : common;
+  }
+  function sessionMinutes(item, day) {
+    const text = String(item.tm || '').normalize('NFKC').trim();
+    if (!text) return [null];
+    const pattern = /(?<!\d)(?:(\d{4})\s*(?:년\s*|[.\/-]\s*))?(\d{1,2})\s*(?:월\s*|[.\/]\s*)(\d{1,2})(?!\d)\s*일?\.?\s*(?:\(\s*(?:[월화수목금토일](?:요일)?|[A-Z]{3})?\s*\)|(?:[월화수목금토일](?:요일)?|MON|TUE|WED|THU|FRI|SAT|SUN)(?=\s|\d))?/gi;
+    // Expand a range whose second date omits its month.
+    const normalized = text.replace(/(\d{1,2})월\s*(\d{1,2})일?\s*([~～–])\s*(\d{1,2})일/g, '$1월 $2일$3$1월 $4일');
+    const anchors = [...normalized.matchAll(pattern)];
+    const slotsFor = clause => {
+      const slots = weeklySlots(clause, day);
+      if (slots.length || closed.test(clause) || /(?:평일|주말|[월화수목금토일](?:요일)?)(?=\s|[:：/])/.test(clause)) return slots;
+      return [null]; // An event with an unspecified time can still be selected.
+    };
+    if (!anchors.length) return slotsFor(normalized);
+    const dates = anchors.map(a => {
+      let year = Number(a[1] || item.beginDt.slice(0, 4));
+      if (!a[1] && item.endDt.slice(0, 4) !== item.beginDt.slice(0, 4) && +a[2] < +item.beginDt.slice(5, 7)) year++;
+      return year + '-' + a[2].padStart(2, '0') + '-' + a[3].padStart(2, '0');
+    });
+    const sessions = [];
+    for (let i = 0; i < anchors.length; ++i) {
+      const a = anchors[i], next = anchors[i + 1];
+      let clause = normalized.slice(a.index + a[0].length, next?.index);
+      if (next && /^\s*(?:~|～|–|-|부터)\s*$/.test(clause)) {
+        if (day >= dates[i] && day <= dates[i + 1]) {
+          clause = normalized.slice(next.index + next[0].length, anchors[i + 2]?.index);
+          sessions.push(...slotsFor(clause));
+        }
+        ++i;
+      } else if (dates[i] === day) {
+        sessions.push(...slotsFor(clause));
+      }
     }
-    return parseTime(text);
+    if (sessions.length) return sessions;
+    if (dates.includes(day)) return []; // Includes explicit closure dates.
+    const prefix = normalized.slice(0, anchors[0].index);
+    if (timesIn(prefix).length) return slotsFor(prefix);
+    // A malformed out-of-range date in the publisher's list cannot establish a start time.
+    return dates.some(date => date < item.beginDt || date > item.endDt) ? [null] : [];
+  }
+  function showKey(show) {
+    return JSON.stringify([show.evtSeq ?? show.title, show.plc, show.start ?? show.day ?? null]);
+  }
+  function showsForDay(rows, day) {
+    if (!Array.isArray(rows) || !/^\d{4}-\d\d-\d\d$/.test(day)) return [];
+    const midnight = Date.parse(day + 'T00:00:00+09:00'), shows = new Map();
+    for (const item of rows.flat(Infinity)) {
+      if (!item || !item.beginDt || !item.endDt || item.beginDt > day || item.endDt < day ||
+          typeof item.plc !== 'string' || !item.plc.trim() || !item.title || item.delYn === 'Y') continue;
+      const rawDuration = String(item.ndTm || '').trim();
+      const duration = /(?:(\d+)\s*시간(?:\s*(\d+)\s*분)?|(\d{1,3})\s*분)/.exec(rawDuration);
+      const minutes = duration ? Number(duration[1] || 0) * 60 + Number(duration[2] || duration[3] || 0) : null;
+      for (const slot of sessionMinutes(item, day)) {
+        const start = slot === null ? null : midnight + slot * MIN;
+        const show = { evtSeq: item.evtSeq ?? null, title: item.title.trim(), plc: item.plc.trim(),
+          genre: item.cultureGenre || '', day, start, end: start !== null && minutes ? start + minutes * MIN : null,
+          endEstimated: Boolean(minutes && /약|예상|내외/.test(rawDuration)), tm: item.tm || '', ndTm: rawDuration };
+        shows.set(showKey(show), show);
+      }
+    }
+    return [...shows.values()].sort((a, b) => (a.start ?? Infinity) - (b.start ?? Infinity) ||
+      a.plc.localeCompare(b.plc, 'ko') || a.title.localeCompare(b.title, 'ko'));
   }
 
   async function fetchJSON(url, options = {}) {
@@ -88,10 +164,10 @@
     const ym = day.slice(0, 7).replace('-', '');
     loadingShows = true;
     lastScheduleTry = timestamp;
-    if (scheduleDay !== day) liveShows = [];
+    if (scheduleDay !== day) { liveShows = []; schedErr = false; }
     try {
       let rows;
-      try { rows = (await fetchJSON('schedule.json')).months?.[ym]; }
+      try { rows = (await window.parkSchedule.load()).months?.[ym]; }
       catch { /* The public schedule API is the secondary source. */ }
       if (!Array.isArray(rows)) rows = await fetchJSON(SCHEDULE, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -99,27 +175,20 @@
       });
       if (!Array.isArray(rows)) throw Error('schedule format');
       if (generation !== token) return;
-      const date = new Date(timestamp + SEOUL), midnight = Date.parse(day + 'T00:00:00+09:00');
-      const seen = new Set();
-      liveShows = rows.flat().filter(item => {
-        if (!item || item.beginDt > day || item.endDt < day || !VENUE.test(item.plc)) return false;
-        const key = item.title + item.plc;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }).map(item => {
-        const start = startMinutes(item, date);
-        const duration = Number(item.ndTm?.match(/\d{2,3}/)?.[0]) || (/DOME|체조/.test(item.plc) ? 150 : 120);
-        return { title: item.title, plc: item.plc.trim(), start: start === null ? null : midnight + start * MIN,
-          end: start === null ? null : midnight + (start + duration) * MIN };
-      }).sort((a, b) => (a.end ?? Infinity) - (b.end ?? Infinity));
+      liveShows = showsForDay(rows, day);
       scheduleDay = day;
       schedErr = false;
       save('olpark_shows', { day, shows: liveShows });
     } catch {
       if (generation !== token) return;
       const record = cached('olpark_shows', null);
-      liveShows = record?.day === day && Array.isArray(record.shows) ? record.shows : [];
+      if (record?.day === day && Array.isArray(record.shows)) {
+        // Legacy caches inferred a duration when none was published. Surface that uncertainty.
+        liveShows = record.shows.filter(show => show?.title && show.plc).map(show => ({
+          ...show, day, endEstimated: show.endEstimated ?? Boolean(show.end),
+        }));
+        scheduleDay = day;
+      }
       schedErr = true;
     } finally {
       if (generation === token) { loadingShows = false; emit(); }
@@ -193,7 +262,7 @@
     });
   }
 
-  function decide(samples, t, shows, d, onset) {
+  function decide(samples, t, shows, selectedShow, d, onset) {
     const result = (tone, chip, head, lab, big, after, tip, go = null, alarm = false) =>
       ({ tone, chip, head, lab, big, after, tip, go, alarm, wait: alarm });
     if (!demo && ((lastOk && t - lastOk > 5 * MIN) || (!lastOk && liveErr)))
@@ -217,7 +286,14 @@
       if (!demo) liveGo = onset;
       return result('go', '출발 권장', '지금 출발하기 좋아요', '추천 출발', '지금', '출차 집중 구간이 지났어요', '5분간 주차 대수 감소폭이 혼잡 기준 아래로 내려왔어요.', t);
     }
-    const ends = shows.map(show => show.end).filter(end => end && end < t + 4 * 60 * MIN);
+    if (selectedShow?.start && t < selectedShow.start)
+      return result('show', '공연 예정', '선택한 공연의 시작 시각이에요', '공연 시작', clock(selectedShow.start), '',
+        '선택한 회차의 시작 시각이에요. 출차 집중 신호가 감지되면 주차 상황을 먼저 안내해요.');
+    if (selectedShow && !selectedShow.end)
+      return result('show', '종료 미정', '종료 시각이 공지되지 않았어요', '공연 종료', '미정', '',
+        '선택한 회차의 종료 시각을 확인할 수 없어 주차장의 출차 신호를 관측하고 있어요.');
+    const ends = selectedShow ? [selectedShow.end] :
+      shows.filter(show => show.start && show.start <= t).map(show => show.end).filter(end => end && end < t + 4 * 60 * MIN);
     const end = ends.length ? Math.max(...ends) : null;
     if (end && t < end)
       return result('show', '공연 중', '공연이 진행 중이에요', '예상 종료', clock(end), '', '종료 시각은 공연 일정과 러닝타임을 기준으로 계산해요.');
@@ -249,14 +325,21 @@
   function emit() {
     const time = demo ? BASE + minute * MIN : Date.now();
     const samples = demo ? archiveSamples(minute) : continuous(liveSamples);
-    const shows = demo ? recordedShows : liveShows;
+    const day = dayKey(time), shows = demo ? recordedShows : scheduleDay === day ? liveShows : [];
+    const scope = 'olpark_show_selection:' + (demo ? 'replay:' : 'live:') + day;
+    if (scope !== selectionScope) {
+      selectionScope = scope;
+      selectedKey = cached(scope, null);
+    }
+    const selectedShow = shows.find(show => showKey(show) === selectedKey) || null;
     const end = samples.at(-1)?.[0], fresh = end && time - end <= 5 * MIN;
     const drop = fresh ? dropAt(samples, end) : null;
     const onset = samples.find(s => time - s[0] <= 90 * MIN && dropAt(samples, s[0]) >= SURGE)?.[0] ?? null;
     const series = end ? rates(samples, end) : [];
-    const decision = decide(samples, time, shows, drop, onset);
+    const decision = decide(samples, time, shows, selectedShow, drop, onset);
     latestState = { demo, playing, time, minute: demo ? minute : null, lastOk: demo ? time : lastOk,
-      schedulePending: !demo && !scheduleDay && !schedErr, liveErr: !demo && liveErr, schedErr: !demo && schedErr, shows, decision, series,
+      schedulePending: !demo && scheduleDay !== day && !schedErr, liveErr: !demo && liveErr, schedErr: !demo && schedErr,
+      shows, selectedShow, decision, series,
       forecast: predict(series, onset, decision, time), rate: fresh ? series.at(-1)?.r ?? null : null,
       drop, total: samples.at(-1)?.[1] ?? null };
     listeners.forEach(fn => fn(latestState));
@@ -287,6 +370,12 @@
     emit();
   }
   function refresh() { if (!demo) { poll(); loadShows(); } }
+  function selectShow(key) {
+    if (!latestState || (key !== null && !latestState.shows.some(show => showKey(show) === key))) return;
+    selectedKey = key;
+    save(selectionScope, key);
+    emit();
+  }
   function live() { switchMode(false); emit(); refresh(); }
   function start() {
     if (started) return;
@@ -310,5 +399,5 @@
     if (latestState) fn(latestState);
     return () => listeners.delete(fn);
   }
-  window.exitClock = { subscribe, start, live, replay, seek, togglePlay, refresh };
+  window.exitClock = { subscribe, start, live, replay, seek, togglePlay, refresh, selectShow, showKey, showsForDay };
 })();
