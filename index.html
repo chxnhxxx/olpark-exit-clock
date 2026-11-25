@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>올팍 출차시계</title>
 <meta name="description" content="올림픽공원 공연이 끝난 뒤, 지금 주차장에서 나가면 막히는지와 언제 출발하면 좋은지 알려 줍니다.">
-<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#151515" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FBFAF7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121110" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
@@ -292,6 +292,56 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--ember);outline-offs
 ::selection{background:color-mix(in srgb,var(--ember) 30%,transparent)}
 footer{color:var(--ink3)}
 @media (max-width:359px){.hero .big{font-size:72px}h1#head{font-size:28px}.lead b{font-size:23px}}
+
+/* 리뷰 반영 */
+h1#head{font-weight:500}
+.lead b,.card h2,.sec>h2,.show .t,.empty .e1{font-weight:500}
+.hero .after,.hero .lab{font-weight:500}
+#tip{color:var(--ink)}
+.wait-ideas{margin:14px 4px 0;font-size:15px;color:var(--ink2)}
+.wait-ideas .wl{margin:0 0 6px;font-size:13px;font-weight:500;color:var(--ink3)}
+.wait-ideas ul{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px}
+.wait-ideas li{background:var(--surface);border-radius:200px;padding:6px 14px;color:var(--ink)}
+.more{margin-top:6px}
+.more summary{cursor:pointer;color:var(--ink);font-weight:500;min-height:44px;display:flex;align-items:center;list-style:none;text-decoration:underline;text-decoration-color:var(--ember);text-underline-offset:4px}
+.more summary::-webkit-details-marker{display:none}
+.more p{margin:0 0 4px}
+.ibtns{display:flex;gap:10px;margin-top:14px}.ibtns .btn{margin-top:0}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+
+/* 색감 다듬기: 순백·순회색 대신 따뜻한 종이 톤, 면 3단계 대비, 주황은 '막힘·출발 시점'에만 */
+:root{
+  --bg:#FBFAF7;--surface:#F1EEE8;--surface2:#E5E0D7;--ivory:#ECE5D7;--line:#E4DFD6;--line2:#D6D0C5;--paper:#FFFFFF;
+  --ink:#1E1C19;--ink2:#4A463F;--ink3:#655F56;
+  --ember:#FF682C;--ember-ink:#A8410F;--brass:#7A6024;
+  --brand:#1E1C19;--go:#1E1C19;--jam:#A8410F;--soon:#7A6024;--easing:#7A6024;--amber-fill:#7A6024;--show:#4A463F;--calm:#4A463F;--slate:#655F56;--flow:#1E1C19;
+  --hair:rgba(30,28,25,.07);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121110;--surface:#1D1B18;--surface2:#2A2723;--ivory:#2A251D;--line:#2B2825;--line2:#3A3631;--paper:#262320;
+  --ink:#EFEBE4;--ink2:#C3BDB3;--ink3:#9C968C;
+  --ember:#FF7A45;--ember-ink:#FF8D5E;--brass:#C9A95E;
+  --brand:#EFEBE4;--go:#EFEBE4;--jam:#FF8D5E;--soon:#C9A95E;--easing:#C9A95E;--amber-fill:#C9A95E;--show:#C3BDB3;--calm:#C3BDB3;--slate:#9C968C;--flow:#EFEBE4;
+  --hair:rgba(255,255,255,.06)}}
+:root[data-theme="dark"]{
+  --bg:#121110;--surface:#1D1B18;--surface2:#2A2723;--ivory:#2A251D;--line:#2B2825;--line2:#3A3631;--paper:#262320;
+  --ink:#EFEBE4;--ink2:#C3BDB3;--ink3:#9C968C;
+  --ember:#FF7A45;--ember-ink:#FF8D5E;--brass:#C9A95E;
+  --brand:#EFEBE4;--go:#EFEBE4;--jam:#FF8D5E;--soon:#C9A95E;--easing:#C9A95E;--amber-fill:#C9A95E;--show:#C3BDB3;--calm:#C3BDB3;--slate:#9C968C;--flow:#EFEBE4;
+  --hair:rgba(255,255,255,.06)}
+.card,.sign{box-shadow:inset 0 0 0 1px var(--hair)}
+.hero{background:var(--paper);box-shadow:0 1px 0 var(--hair),0 0 0 1px var(--hair)}
+.s-go .sign{box-shadow:none}
+.s-go .hero{background:var(--bg)}
+.fresh{background:var(--surface);box-shadow:inset 0 0 0 1px var(--hair)}
+.fresh i{background:var(--brass)} .s-jam .fresh i{background:var(--ember)}
+.badge{background:var(--paper);box-shadow:inset 0 0 0 1px var(--hair)}
+.s-jam .badge{box-shadow:none}
+.demo-band{background:var(--surface2)}
+.how .ic,.empty svg rect{background:var(--paper)}
+.wait-ideas li{background:var(--paper);box-shadow:inset 0 0 0 1px var(--line)}
+.busy{background:var(--ivory)}
+.strip .p{background:var(--ink3);opacity:.55}
 </style>
 </head>
 <body class="s-wait">
@@ -321,7 +371,8 @@ footer{color:var(--ink3)}
   </div>
 
   <p id="tip"></p>
-  <button class="btn alarm" id="alarm" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 004 0"/></svg><span><span id="alarmTxt">출발 시간 되면 알려 주세요</span><small id="alarmSub">화면을 켜 두시면 진동과 소리로 알려 드려요</small></span></button>
+  <button class="btn alarm" id="alarm" aria-pressed="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 004 0"/></svg><span><span id="alarmTxt">출발 시간 되면 알려 주세요</span><small id="alarmSub">이 화면을 켜 두시면 진동과 소리로 알려 드려요</small></span></button>
+  <div class="wait-ideas" id="waitIdeas" hidden><p class="wl">기다리는 동안</p><ul><li>화장실 다녀오기</li><li>평화의 광장 산책</li><li>몽촌호수 둘레길 걷기</li></ul></div>
   <button class="btn retry" id="retry">다시 확인</button>
  </div>
 </div>
@@ -333,7 +384,7 @@ footer{color:var(--ink3)}
       <p class="lead" id="lead">몇 분 지나면 그래프가 그려져요</p>
       <div class="chartbox"><svg class="chart" id="chart" viewBox="0 0 320 228" role="img" aria-label="지난 30분 동안 1분마다 주차장을 나간 차와 앞으로 30분 예상"></svg></div>
       <div class="legend" id="legend" aria-hidden="true"></div>
-      <p class="cap" id="chartCap">1분에 12대 넘게 나가면 출구에 줄이 생겨요. 빨간 부분이 그때예요.</p>
+      <div class="cap" id="chartCap">1분에 12대 넘게 나가면 출구에 줄이 생겨요.</div>
     </div>
   </section>
 
@@ -344,12 +395,21 @@ footer{color:var(--ink3)}
     </div>
   </section>
 
+  <section class="sec install" id="install" hidden>
+    <div class="card">
+      <h2>공연 날 바로 열 수 있게</h2>
+      <p class="cap">홈 화면에 추가해 두면 앱처럼 바로 열려요. <span id="installHow"></span></p>
+      <div class="ibtns"><button class="btn primary" id="installBtn" hidden>홈 화면에 추가</button><button class="btn ghost" id="installX">알겠어요</button></div>
+    </div>
+  </section>
+
   <section class="sec">
     <h2>어떻게 알려 주나요?</h2>
     <div class="card" style="margin-top:12px">
       <ul class="how">
         <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M10 2h4"/></svg></span><span>한국체육산업개발이 공개하는 올림픽공원 실시간 주차 대수를 <b>1분마다</b> 확인해요.</span></li>
         <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 3 8-8"/><path d="M3 21h18" opacity=".5"/></svg></span><span>1분에 <b>12대</b> 넘게 빠져나가면 "줄 서요"라고 알려 드려요. 평소 저녁에는 1분에 2~6대예요.</span></li>
+        <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M10 16V8h3a2.5 2.5 0 010 5h-3"/></svg></span><span>숫자는 <b>세 주차장(동·남·북)을 합친 것</b>이에요. 주차장마다 따로는 알 수 없어서, 어느 출구든 같은 기준으로 알려 드려요.</span></li>
         <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg></span><span>2024년 공연 밤에는 붐비는 흐름이 보통 <b>45분</b> 이어졌어요. 그 기준으로 출발 시각을 추천해요.</span></li>
       </ul>
       <p class="src">기관 집계 주차대수(<span id="vNow" class="num">–</span>)에는 오래 세워 둔 차가 쌓여 있어 실제보다 많게 나와요. 그래서 몇 대가 빠졌는지만 봐요.<br>자료: 실시간 주차현황(공공데이터포털 15168686), 주차장 입출차 정보(15138735), 올림픽공원 공연일정.</p>
@@ -471,12 +531,12 @@ function rateSeries(tEnd, minutes){
 }
 
 // ---------- 판단 ----------
-let lastTone=null, alarmArmed=false, wakeLock=null;
+let lastTone=null, alarmArmed=false, wakeLock=null, wentGo=null;
 function decide(){
   const t=now(), d=drop5(), onset=surgeOnset();
   const lastEnd = shows.filter(s=>s.end).map(s=>+s.end).filter(e=>e<t+4*3600e3).sort((a,b)=>b-a)[0];
-  const inWindow = lastEnd && t>=lastEnd+15*MIN && t<=lastEnd+110*MIN;
-  const before = lastEnd && t<lastEnd+15*MIN;
+  const inWindow = lastEnd && t>=lastEnd && t<=lastEnd+110*MIN;
+  const before = lastEnd && t<lastEnd;
   const safeAfter = lastEnd ? fmt(lastEnd+90*MIN) : null;
   if(!demo && lastOk && Date.now()-lastOk>5*MIN){
     return {tone:'stale', chip:'정보 끊김', head:'주차장 정보가 끊겼어요', lab:`${fmt(lastOk)}까지 확인했어요`, big:'다시 연결 중', txt:true, after:'', tip: safeAfter?`공연 끝나고 1시간 반쯤은 붐벼요. ${safeAfter} 뒤에 나가시면 안전해요.`:'잠시 뒤 다시 확인해 주세요.'};
@@ -485,23 +545,34 @@ function decide(){
     return {tone:'stale', chip:'연결 안 됨', head:'주차장 정보를 받지 못했어요', lab:'', big:'', tip: safeAfter?`공연 끝나고 1시간 반쯤은 붐벼요. ${safeAfter} 뒤에 나가시면 안전해요.`:'잠시 뒤 다시 확인해 주세요.'};
   }
   if(onset){
+    // 출발은 '예정 시각'만이 아니라 실제로 나가는 차가 기준 아래로 2분 넘게 내려간 걸 확인한 뒤에만
     let go=onset+SURGE_LEN*MIN, delayed=false;
-    if(t>=go && d!==null && d>=SURGE){ go=t+5*MIN; delayed=true; }
-    const prog=Math.min(1,(t-onset)/(go-onset));
+    const dPrev=dropAt(t-2*MIN), d10=dropAt(t-10*MIN);
+    const below = d!==null && d<SURGE && (dPrev===null || dPrev<SURGE);
+    const settled = below && (d<CALM || (t>=go && d<SURGE*0.6) || t>=go+5*MIN);
     if(d!==null && d>=SURGE){
-      return {tone:'jam', chip:'막힘', head:'지금 나가면 줄 서요', lab:'이때 출발하세요', big:fmt(go), after:`약 ${ceilMin(go-t)}분 뒤`, ring:prog, ringTxt:`${ceilMin(go-t)}분`, go, alarm:true,
-        tip: delayed?'예상보다 오래 붐벼요. 출발 시각을 조금 늦췄어요.':'공원에서 쉬었다 오세요. 때가 되면 화면이 "출발"로 바뀌어요.'};
+      if(t>=go-2*MIN){ go=t+5*MIN; delayed=true; }
+      const prog=Math.min(1,(t-onset)/(go-onset));
+      const falling = d10!==null && d10>=SURGE && d<=d10*0.85;
+      return {tone:'jam', chip:'막힘', head:'지금 나가면 줄 서요', lab:'이때 출발하세요', big:fmt(go), after:`약 ${ceilMin(go-t)}분 뒤`, ring:prog, go, alarm:true, wait:true,
+        tip: delayed?'오늘은 예상보다 오래 붐벼요. 나가는 차가 줄어드는 걸 보고 다시 알려 드려요.':falling?'가장 붐비는 때는 지났어요. 줄이 조금씩 줄고 있어요.':'공원에서 쉬었다 오세요. 나가도 될 때 화면이 "출발"로 바뀌어요.'};
     }
-    if(d!==null && d>=CALM && t<go){
-      return {tone:'easing', chip:'풀리는 중', head:'줄이 줄고 있어요', lab:'이때 출발하세요', big:fmt(go), after:`약 ${ceilMin(go-t)}분만 더`, ring:prog, ringTxt:`${ceilMin(go-t)}분`, go, alarm:true, tip:'거의 다 됐어요.'};
+    // 한 번 '출발'이 되면 다시 막히기(5분 60대) 전까지는 출발을 유지해 화면이 오락가락하지 않게
+    if(d!==null && !settled && wentGo!==onset){
+      if(t<go){ const prog=Math.min(1,(t-onset)/(go-onset));
+        return {tone:'easing', chip:'풀리는 중', head:'줄이 줄고 있어요', lab:'이때 출발하세요', big:fmt(go), after:`약 ${ceilMin(go-t)}분만 더`, ring:prog, go, alarm:true, wait:true,
+          tip:'나가는 차가 줄었어요. 조금만 더 기다리면 줄 없이 나가요.'}; }
+      return {tone:'easing', chip:'풀리는 중', head:'줄이 줄고 있어요', lab:'출발', big:'곧', txt:true, after:'몇 분 안에 풀려요', go:t+3*MIN, alarm:true,
+        tip:'예상 시각은 지났지만 아직 차가 조금 많아요. 화면이 "출발"로 바뀌면 나가세요.'};
     }
-    if(d!==null){
-      return {tone:'go', chip:'출발', head:'지금 나가셔도 돼요', lab:'출발', big:'지금', after:'줄이 거의 없어요', go:t, tip:'안전 운전하세요.'};
+    if(d!==null){ wentGo=onset;
+      return {tone:'go', chip:'출발', head:'지금 나가셔도 돼요', lab:'출발', big:'지금', after:'나가는 차가 평소 수준이에요', go:t, tip:'안전 운전하세요.'};
     }
   }
   if(inWindow){
     const startJam=lastEnd+30*MIN;
-    return {tone:'soon', chip:'곧 붐빔', head:'곧 나가는 길이 붐벼요', lab:'지금 출발하세요', big:'지금', after: t<startJam?`${fmt(startJam)}부터 막히기 시작해요`:'언제든 막히기 시작할 수 있어요', tip:`못 나가셨다면 ${safeAfter} 뒤에 나가세요.`};
+    const justEnded=t<lastEnd+15*MIN;
+    return {tone:'soon', chip:justEnded?'공연 끝날 시간':'곧 붐빔', head:justEnded?'공연이 끝날 시간이에요':'곧 나가는 길이 붐벼요', lab:'지금 출발하세요', big:'지금', after: t<startJam?`${fmt(startJam)}부터 막히기 시작해요`:'언제든 막히기 시작할 수 있어요', tip: justEnded?`지금 바로 나가면 줄 없이 나갈 수 있어요. 늦어지면 ${safeAfter} 뒤에 나가세요.`:`못 나가셨다면 ${safeAfter} 뒤에 나가세요.`};
   }
   if(before){
     return {tone:'show', chip:'공연 중', head:'아직 공연 중이에요', lab:'공연 끝나는 시간', big:fmt(lastEnd)+'쯤', after:'끝나고 30분 뒤부터 1시간쯤 붐벼요', tip:'붐비기 전에 나가려면 끝나자마자 출발하세요.'};
@@ -509,16 +580,15 @@ function decide(){
   if(!demo && samples.length<2 && !lastOk){
     return {tone:'wait', chip:'확인 중', head:'주차장 상황을 보는 중이에요', lab:'', big:'', tip:'2~3분이면 알려 드려요.'};
   }
-  return {tone:'calm', chip:'평소', head:'나가는 길이 한산해요', lab:'지금 상황', big:'막힘 없음', txt:true,
-    after: schedErr?'공연 정보를 못 불러왔어요':(shows.length?'지금은 붐비는 시간이 아니에요':'오늘은 큰 공연이 없어요'), demoLink:false,
-    tip: schedErr?'주차장 상황만 보고 알려 드려요.':''};
+  return {tone:'calm', chip:'평소', head:'나가는 길이 한산해요', lab:'', big:'',
+    tip: schedErr?'공연 정보를 못 불러와서 주차장 상황만 보고 알려 드려요.':(shows.length?'지금은 붐비는 시간이 아니에요.':'오늘은 큰 공연이 없어요.')};
 }
 
 // ---------- 그리기 ----------
 const ICON_CLOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 function renderShows(){
   const box=$('shows');
-  if(schedErr){ box.innerHTML='<p class="cap">공연 정보를 못 불러왔어요. 주차장 상황만 보고 알려 드려요.</p>'; return; }
+  if(schedErr){ box.innerHTML='<p class="cap">'+(liveErr&&!lastOk?'공연 정보를 못 불러왔어요. 잠시 뒤 다시 확인해 주세요.':'공연 정보를 못 불러왔어요. 주차장 상황만 보고 알려 드려요.')+'</p>'; return; }
   if(!shows.length){ box.innerHTML='<div class="empty"><svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="20" fill="var(--bg)"/><path d="M12 22l5 5 11-12" fill="none" stroke="var(--brand)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><div><p class="e1">오늘은 큰 공연이 없어요.</p><p class="e2">나가는 길이 막힐 일은 적어요.</p></div></div>'; return; }
   const t=now();
   box.innerHTML=shows.map(s=>{
@@ -639,7 +709,9 @@ function chart(s){
   else lead='<b>주차장을 나가는 차를 세는 중이에요</b>';
   if(r!==null) lead+=`<span class="now-rate">지금 1분에 <span class="num">${r}</span>대 · ${lvName(r)}</span>`;
   $('lead').innerHTML=lead; chartState.lead=lead;
-  $('chartCap').textContent = (future.length?'황동색 선은 2024년 공연 밤 흐름으로 본 예상이에요. ':'')+'1분에 12대 넘게 나가면 출구에 줄이 생겨요. 그래프를 손가락으로 짚으면 그때 숫자가 보여요.'+(demo?' 예시는 5분 단위 기록을 1분 간격으로 이어 그렸어요.':'');
+  const wasOpen=!!document.querySelector('#chartCap details[open]');
+  $('chartCap').innerHTML = '1분에 12대 넘게 나가면 출구에 줄이 생겨요.<details class="more"><summary>그래프 읽는 법</summary><p>'+(future.length?'황동색 선은 2024년 공연 밤 흐름으로 본 예상이에요. ':'검은 선은 지난 30분 동안 실제로 나간 차예요. ')+'그래프를 손가락으로 짚으면 그 시각의 숫자가 보여요. 세 주차장(동·남·북)을 합친 숫자예요.'+(demo?' 예시는 5분 단위 기록을 1분 간격으로 이어 그렸어요.':'')+'</p></details>';
+  if(wasOpen) $('chartCap').querySelector('details').open=true;
 }
 // 짚으면 제목이 그 시각 값으로 바뀜(토스·로빈후드 방식)
 (function(){
@@ -679,6 +751,9 @@ function render(){
   if(s.demoLink){ tip.innerHTML=(s.tip?esc(s.tip)+' ':'')+'<a href="#" id="demoLink" style="color:var(--ink);font-weight:700;text-underline-offset:3px">공연 끝난 밤엔 이렇게 보여요 (예시)</a>'; $('demoLink').onclick=e=>{e.preventDefault();startDemo();}; tip.hidden=false; }
   else { tip.textContent=s.tip||''; tip.hidden=!s.tip; }
   $('alarm').hidden=!s.alarm || !!demo;
+  $('waitIdeas').hidden=!s.wait;
+  { const ib=$('install'); if(ib.dataset.ok!=='0') ib.style.display=demo?'none':''; }
+  if(alarmArmed && s.go){ $('alarmTxt').textContent=`알림 켜짐 · ${fmt(s.go)}에 진동과 소리`; document.title=`출발까지 ${ceilMin(s.go-now())}분 · 올팍 출차시계`; } else document.title='올팍 출차시계';
   // 신선도
   const f=$('fresh'), ft=$('freshTxt');
   if(demo){ f.className='fresh'; ft.textContent=fmt(now())+' (예시)'; }
@@ -691,7 +766,7 @@ function render(){
 
 // ---------- 출발 알림 ----------
 async function ring(){
-  alarmArmed=false; $('alarm').setAttribute('aria-pressed','false'); $('alarmTxt').textContent='출발 시간 되면 알려 주세요';
+  alarmArmed=false; $('alarm').setAttribute('aria-pressed','false'); $('alarmTxt').textContent='출발 시간 되면 알려 주세요'; $('alarmSub').textContent='이 화면을 켜 두시면 진동과 소리로 알려 드려요'; document.title='올팍 출차시계';
   try{ navigator.vibrate&&navigator.vibrate([300,150,300,150,300]); }catch(e){}
   try{ const ac=new (window.AudioContext||window.webkitAudioContext)(); [0,0.35].forEach(dt=>{ const o=ac.createOscillator(), g=ac.createGain(); o.frequency.value=880; g.gain.setValueAtTime(.0001,ac.currentTime+dt); g.gain.exponentialRampToValueAtTime(.3,ac.currentTime+dt+.02); g.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+dt+.3); o.connect(g).connect(ac.destination); o.start(ac.currentTime+dt); o.stop(ac.currentTime+dt+.32); }); }catch(e){}
   try{ if('Notification' in window && Notification.permission==='granted') new Notification('지금 나가셔도 돼요',{body:'올림픽공원 주차장 줄이 거의 없어요.',icon:'icon.svg'}); }catch(e){}
@@ -699,12 +774,25 @@ async function ring(){
 }
 $('alarm').onclick=async()=>{
   alarmArmed=!alarmArmed; $('alarm').setAttribute('aria-pressed',String(alarmArmed));
-  $('alarmTxt').textContent=alarmArmed?'알림 켜짐 · 누르면 끄기':'출발 시간 되면 알려 주세요';
+  $('alarmTxt').textContent=alarmArmed?'알림 켜짐 · 누르면 끄기':'출발 시간 되면 알려 주세요'; $('alarmSub').textContent=alarmArmed?'이 화면을 켜 둔 채로 두세요. 화면이 꺼지면 울리지 않을 수 있어요.':'이 화면을 켜 두시면 진동과 소리로 알려 드려요';
   if(alarmArmed){ try{ if('Notification' in window && Notification.permission==='default') await Notification.requestPermission(); }catch(e){}
     try{ if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); }catch(e){} }
   else { try{ wakeLock&&wakeLock.release(); wakeLock=null; }catch(e){} }
 };
 $('retry').onclick=()=>{ poll(); loadShows(); };
+// 홈 화면에 추가 안내(앱으로 열었거나 닫은 적 있으면 안 보임)
+(function(){
+  const box=$('install'); let dismissed=false, deferred=null;
+  try{ dismissed=localStorage.getItem('olpark-install-hide')==='1'; }catch(e){}
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  if(dismissed||standalone){ box.dataset.ok='0'; return; }
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  $('installHow').textContent= ios?'Safari 아래쪽 공유 버튼 → "홈 화면에 추가"를 누르세요.':'브라우저 메뉴(⋮) → "홈 화면에 추가"를 누르세요.';
+  box.hidden=false;
+  addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferred=e; $('installBtn').hidden=false; });
+  $('installBtn').onclick=async()=>{ if(!deferred) return; deferred.prompt(); try{ await deferred.userChoice; }catch(e){} deferred=null; box.hidden=true; };
+  $('installX').onclick=()=>{ box.hidden=true; try{ localStorage.setItem('olpark-install-hide','1'); }catch(e){} };
+})();
 
 // ---------- 예시: 2024-07-20 밤 재생 ----------
 // 예시: 2024-07-20 기록(5분 간격)을 1분 간격으로 이어 붙여 1분씩 재생
@@ -713,7 +801,7 @@ const demoV=m=>{ const v=window.PATTERN_2024.d20.v, x=m/5, k=Math.floor(x); if(k
 const DEMO_END=(window.PATTERN_2024.d20.v.length-1)*5;
 function demoStep(){ demo.m++; const t=DEMO_BASE+demo.m*MIN; samples.push([t,demoV(demo.m)]); demo.t=t; }
 function startDemo(){
-  stopDemo(true);
+  stopDemo(true); wentGo=null;
   const saved={samples, shows, schedErr}; demo={m:300, saved};
   samples=[]; for(let m=0;m<=demo.m;m++) samples.push([DEMO_BASE+m*MIN,demoV(m)]);
   shows=[{title:'그날 KSPO DOME 공연',plc:'KSPO DOME',start:new Date('2024-07-20T18:00:00'),end:new Date('2024-07-20T20:30:00'),dur:150}]; schedErr=false;
