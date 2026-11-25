@@ -133,7 +133,6 @@ for rid, rec in records.items():
         rec["prfruntime"] = (d.findtext("prfruntime") or "").strip()
         rec["dtguidance"] = (d.findtext("dtguidance") or "").strip()
         rec["fcltynm"] = (d.findtext("fcltynm") or rec.get("fcltynm") or "").strip()
-        print("KOPIS 상세:", rec.get("prfnm", "")[:30], "|", rec["fcltynm"], "|", rec["prfruntime"])
     time.sleep(0.3)
     rec["hall"] = hall(rec.get("fcltynm"))
     rec["from"], rec["to"] = kdate(rec.get("prfpdfrom")), kdate(rec.get("prfpdto"))
@@ -153,6 +152,8 @@ for key, evs in official.items():
         if s >= 0.35:
             cands.append((s, rid))
     cands.sort(reverse=True)
+    if len({normalized(records[r].get("prfnm", "")) for _, r in cands}) == 1:
+        cands = cands[:1]  # KOPIS sometimes splits one run into one record per day
     if cands and (len(cands) == 1 or cands[0][0] - cands[1][0] >= 0.15):
         rid = cands[0][1]
         matched[key] = rid
