@@ -40,7 +40,7 @@ def get(path, **params):
         except Exception as e:
             last = f"{type(e).__name__} ({base.split('/')[0]})"
         print("KOPIS 재시도:", path.split('/')[0], last)
-        time.sleep(2 + attempt * 3)
+        time.sleep(5 + attempt * 10)
     else:
         raise RuntimeError(f"KOPIS 요청 실패 ({path.split('/')[0]}): {last}")
     try:
