@@ -1,0 +1,21 @@
+name: probe-ticket-runtime
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: robots and product pages
+        run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"
+          for h in nol.yanolja.com tickets.interpark.com ticket.yes24.com www.ticketlink.co.kr ticket.melon.com; do
+            echo "===== robots $h"; curl -s -m 20 -A "$UA" "https://$h/robots.txt" | head -40
+          done
+          for id in 26013810 26014222 26016335 26007874; do
+            u="https://nol.yanolja.com/ticket/products/$id"
+            code=$(curl -s -m 30 -A "$UA" -o p.html -w '%{http_code}' "$u"); echo "===== $id $code $(wc -c < p.html)"
+            grep -oE "(관람시간|공연시간|러닝타임|runningTime|playTime|running_time)[^<]{0,80}" p.html | head -8
+            grep -oE '"[A-Za-z]*([Rr]unning|[Pp]lay)[A-Za-z]*"\s*:\s*"?[^,"}]{0,30}' p.html | sort -u | head -8
+            grep -oE "<script[^>]*src=\"[^\"]{0,120}\"" p.html | head -3
+            grep -c "__NEXT_DATA__" p.html
+          done
