@@ -266,7 +266,7 @@ section.sec{margin-top:44px}
 .lead .now-rate .num{font-weight:500}
 .legend{font-weight:400}
 .legend .sw{border-top:2px solid var(--ink);width:20px}
-.legend .sw-d{border-top:2px dotted var(--brass)}
+.legend .sw-d{border-top:2px solid var(--brass)}
 .cap{color:var(--ink2);font-size:var(--t-sm)}
 .show{border-top:1px solid var(--line2)}
 .show .t{font-weight:400;font-size:20px;letter-spacing:-.02em;line-height:1.3}
@@ -510,7 +510,7 @@ function decide(){
     return {tone:'wait', chip:'확인 중', head:'주차장 상황을 보는 중이에요', lab:'', big:'', tip:'2~3분이면 알려 드려요.'};
   }
   return {tone:'calm', chip:'평소', head:'나가는 길이 한산해요', lab:'지금 상황', big:'막힘 없음', txt:true,
-    after: schedErr?'공연 정보를 못 불러왔어요':(shows.length?'지금은 붐비는 시간이 아니에요':'오늘은 큰 공연이 없어요'), demoLink:true,
+    after: schedErr?'공연 정보를 못 불러왔어요':(shows.length?'지금은 붐비는 시간이 아니에요':'오늘은 큰 공연이 없어요'), demoLink:false,
     tip: schedErr?'주차장 상황만 보고 알려 드려요.':''};
 }
 
@@ -598,10 +598,10 @@ function chart(s){
     g+=`<text x="${X(x)}" y="${H-9}" font-size="12" font-weight="${isNow?700:500}" text-anchor="${a}" fill="${isNow?'var(--ink)':'var(--ink3)'}">${l}</text>`; });
   // 지금 세로선(가는 점선)
   g+=`<line x1="${xn}" x2="${xn}" y1="${T-10}" y2="${y0}" stroke="var(--ink3)" stroke-width="1" stroke-dasharray="2 3"/>`;
-  if(valid.length<3 && !future.length) g+=`<text x="${(L+xn)/2}" y="${(y6+y0)/2+5}" font-size="14" font-weight="700" text-anchor="middle" fill="var(--ink3)">몇 분 지나면 그려져요</text>`;
+  if(valid.length<3 && !future.length) g+=`<text x="${(L+xn)/2}" y="${(yJ+y6)/2+5}" font-size="14" font-weight="500" text-anchor="middle" fill="var(--ink3)">몇 분 지나면 그려져요</text>`;
   if(!future.length && valid.length>=3) g+=`<text x="${(xn+X(x1))/2+2}" y="${(yJ+y6)/2-4}" font-size="12.5" font-weight="600" text-anchor="middle" fill="var(--ink3)"><tspan x="${(xn+X(x1))/2+2}">공연이 끝나면</tspan><tspan x="${(xn+X(x1))/2+2}" dy="17">예상이 보여요</tspan></text>`;
   // 곡선
-  const key=s.tone+'|'+(demo?'d':'l'); const anim=key!==chartKey; chartKey=key;
+  const key=demo?'d':'l'; const anim=key!==chartKey; chartKey=key;
   let body='';
   const segs=[]; let cur=[]; for(const p of view){ if(p.r===null){ if(cur.length) segs.push(cur); cur=[]; } else cur.push(p); } if(cur.length) segs.push(cur);
   for(const seg of segs){ if(seg.length<2) continue; const pts=seg.map(p=>[X(p.t),Y(p.r)]), line=monoPath(pts);
@@ -609,7 +609,7 @@ function chart(s){
     body+=`<path class="${anim?'ca-line':''}" pathLength="1" d="${line}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`; }
   if(future.length>1){ const pts=future.map(p=>[X(p.t),Y(p.r)]), line=monoPath(pts);
     body+=`<g class="${anim?'ca-late':''}"><path d="${line} L${pts[pts.length-1][0].toFixed(1)},${y0} L${pts[0][0].toFixed(1)},${y0} Z" fill="var(--brass)" opacity=".06" mask="url(#mFade)"/>`;
-    body+=`<path d="${line}" fill="none" stroke="var(--brass)" stroke-width="2" stroke-dasharray="1.5 4.5" stroke-linecap="round"/></g>`; }
+    body+=`<path d="${line}" fill="none" stroke="var(--brass)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/></g>`; }
   g+=`<g clip-path="url(#cPlot)">${body}</g>`;
   // 손가락으로 짚었을 때 그 뒤를 흐리게(로빈후드·토스)
   g+=`<rect id="dim" x="0" y="${T-12}" width="0" height="${y0-T+12}" fill="var(--surface)" opacity=".62" style="display:none"/>`;
@@ -636,7 +636,7 @@ function chart(s){
   else lead='<b>주차장을 나가는 차를 세는 중이에요</b>';
   if(r!==null) lead+=`<span class="now-rate">지금 1분에 <span class="num">${r}</span>대 · ${lvName(r)}</span>`;
   $('lead').innerHTML=lead; chartState.lead=lead;
-  $('chartCap').textContent = (future.length?'점선은 2024년 공연 밤 흐름으로 본 예상이에요. ':'')+'1분에 12대 넘게 나가면 출구에 줄이 생겨요. 그래프를 손가락으로 짚으면 그때 숫자가 보여요.'+(demo?' 예시는 5분 단위 기록을 1분으로 나눠 그렸어요.':'');
+  $('chartCap').textContent = (future.length?'황동색 선은 2024년 공연 밤 흐름으로 본 예상이에요. ':'')+'1분에 12대 넘게 나가면 출구에 줄이 생겨요. 그래프를 손가락으로 짚으면 그때 숫자가 보여요.'+(demo?' 예시는 5분 단위 기록을 1분 간격으로 이어 그렸어요.':'');
 }
 // 짚으면 제목이 그 시각 값으로 바뀜(토스·로빈후드 방식)
 (function(){
@@ -704,17 +704,21 @@ $('alarm').onclick=async()=>{
 $('retry').onclick=()=>{ poll(); loadShows(); };
 
 // ---------- 예시: 2024-07-20 밤 재생 ----------
+// 예시: 2024-07-20 기록(5분 간격)을 1분 간격으로 이어 붙여 1분씩 재생
+const DEMO_BASE=new Date('2024-07-20T15:00:00').getTime();
+const demoV=m=>{ const v=window.PATTERN_2024.d20.v, x=m/5, k=Math.floor(x); if(k>=v.length-1) return v[v.length-1]; return Math.round(v[k]+(v[k+1]-v[k])*(x-k)); };
+const DEMO_END=(window.PATTERN_2024.d20.v.length-1)*5;
+function demoStep(){ demo.m++; const t=DEMO_BASE+demo.m*MIN; samples.push([t,demoV(demo.m)]); demo.t=t; }
 function startDemo(){
   stopDemo(true);
-  const P=window.PATTERN_2024.d20; const base=new Date('2024-07-20T15:00:00').getTime();
-  const saved={samples, shows, schedErr}; demo={i:Math.round((19.5-15)*12), saved};
-  samples=P.v.slice(0,demo.i+1).map((v,i)=>[base+i*5*MIN,v]);
+  const saved={samples, shows, schedErr}; demo={m:300, saved};
+  samples=[]; for(let m=0;m<=demo.m;m++) samples.push([DEMO_BASE+m*MIN,demoV(m)]);
   shows=[{title:'그날 KSPO DOME 공연',plc:'KSPO DOME',start:new Date('2024-07-20T18:00:00'),end:new Date('2024-07-20T20:30:00'),dur:150}]; schedErr=false;
   demo.t=samples[samples.length-1][0];
   $('demoBand').style.display='flex'; document.documentElement.style.setProperty('--band','40px'); $('demoBtn').textContent='예시 처음부터 다시 보기';
-  renderShows(); render(); scrollTo({top:0,behavior:'smooth'});
-  demo.timer=setInterval(()=>{ demo.i++; if(demo.i>=P.v.length){ clearInterval(demo.timer); return; }
-    const t=base+demo.i*5*MIN; samples.push([t,P.v[demo.i]]); demo.t=t; renderShows(); render(); }, 1500);
+  renderShows(); render(); window.scrollTo({top:0});
+  demo.timer=setInterval(()=>{ if(demo.m>=DEMO_END){ clearInterval(demo.timer); return; }
+    demoStep(); if(demo.m%5===0) renderShows(); render(); }, 320);
 }
 function stopDemo(quiet){
   if(!demo) return; clearInterval(demo.timer); ({samples, shows, schedErr}=demo.saved); demo=null; lastTone=null;
@@ -724,7 +728,7 @@ function stopDemo(quiet){
 $('demoBtn').onclick=startDemo; $('liveBtn').onclick=()=>stopDemo(false);
 
 const q=new URLSearchParams(location.search);
-if(q.has('demo')){ startDemo(); const at=q.get('at'); if(at){ const [h,m]=at.split(':').map(Number); const k=Math.round(((h*60+m)-15*60)/5); const P=window.PATTERN_2024.d20; const base=new Date('2024-07-20T15:00:00').getTime(); while(demo.i<k){ demo.i++; const t=base+demo.i*5*MIN; samples.push([t,P.v[demo.i]]); demo.t=t; } clearInterval(demo.timer); renderShows(); render(); } }
+if(q.has('demo')){ startDemo(); const at=q.get('at'); if(at){ const [h,m]=at.split(':').map(Number); const k=(h*60+m)-15*60; clearInterval(demo.timer); while(demo.m<k&&demo.m<DEMO_END) demoStep(); renderShows(); render(); } }
 else { loadShows(); poll(); render(); }
 setInterval(poll, 60e3);
 setInterval(()=>{ if(!demo){ render(); } }, 15e3);
