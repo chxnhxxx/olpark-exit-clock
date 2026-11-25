@@ -26,7 +26,7 @@ jobs:
         env:
           KCISA_SERVICE_KEY: ${{ secrets.KCISA_SERVICE_KEY }}
         run: |
-          test -n "$KCISA_SERVICE_KEY" && python scripts/enrich_performances.py
+          if [ -n "$KCISA_SERVICE_KEY" ]; then python scripts/enrich_performances.py; fi
         continue-on-error: true
       - name: KOPIS 러닝타임 보강
         id: kopis
