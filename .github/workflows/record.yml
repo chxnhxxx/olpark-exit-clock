@@ -1,0 +1,29 @@
+name: 공연 밤 주차 기록
+on:
+  schedule:
+    # 13:00~00:30 KST, every 30 minutes. Each run records ~40 minutes so delayed runs still overlap.
+    - cron: '0,30 4-15 * * *'
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: '기록할 분'
+        default: '40'
+      force:
+        description: '공연이 없어도 기록 (시험용, 1)'
+        default: '0'
+permissions:
+  contents: write
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: 1분 간격 주차 대수 기록
+        env:
+          RUN_MINUTES: ${{ inputs.minutes || '40' }}
+          FORCE: ${{ inputs.force || '0' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python scripts/record_night.py

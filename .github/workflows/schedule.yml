@@ -43,7 +43,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add schedule.json $(ls kopis_report.md 2>/dev/null)
-          git diff --cached --quiet || (git commit -m "공연 일정 갱신" && git push)
+          git diff --cached --quiet || (git commit -m "공연 일정 갱신" && (git push || (git pull -q --rebase origin main && git push)))
       - name: 공연정보 보강 실패 표시
         if: steps.enrich.outcome == 'failure' || steps.kopis.outcome == 'failure'
         run: exit 1
