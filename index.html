@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>올팍 출차시계</title>
 <meta name="description" content="올림픽공원 공연이 끝난 뒤, 지금 주차장에서 나가면 막히는지와 언제 출발하면 좋은지 알려 줍니다.">
-<meta name="theme-color" content="#F1F4F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0A1017" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151515" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
@@ -16,35 +16,35 @@
    차분한 푸른 회색 바탕 + 주차 표지판 파랑(브랜드) + 상태색 4가지.
    모든 글자색은 바탕·면 위에서 4.5:1 이상. */
 :root{
-  --bg:#F1F4F7;--surface:#FFFFFF;--surface2:#E6EBF0;--line:#D3DBE3;--line2:#C3CDD7;
-  --ink:#0E1A25;--ink2:#34424F;--ink3:#5B6876;
-  --brand:#1D5BB5;--on-accent:#FFFFFF;
-  --show:#1D5BB5;--soon:#9A5800;--jam:#C02A1B;--easing:#9A5800;--go:#11743B;--calm:#1D5BB5;--slate:#4A5866;
-  --amber-fill:#E89A1E;
-  --flow:#1D5BB5;
-  --t-xs:13px;--t-sm:15px;--t-md:17px;--t-lg:20px;--t-xl:24px;--t-2xl:28px;
-  --shadow:0 1px 2px rgba(15,27,38,.05),0 6px 20px -8px rgba(15,27,38,.10);
-  --tint-mix:9%;--edge-mix:24%;
-  --r-lg:24px;--r-md:16px;--r-sm:12px;
+  /* Ventriloc 스타일: 흰 종이 + 회색 면 + 주황(Ember) 한 점, 황동(Brass) 보조 */
+  --bg:#FFFFFF;--surface:#EFEFEF;--surface2:#E8E8E8;--fog:#F5F5F5;--ivory:#EBE6DD;--line:#E3E3E3;--line2:#D2D2D2;
+  --ink:#202020;--ink2:#4D4D4D;--ink3:#6B6B6B;
+  --ember:#FF682C;--ember-ink:#B5400F;--brass:#816729;
+  --brand:#202020;--on-accent:#FFFFFF;
+  --show:#4D4D4D;--soon:#816729;--jam:#B5400F;--easing:#816729;--go:#202020;--calm:#4D4D4D;--slate:#6B6B6B;
+  --amber-fill:#816729;--flow:#202020;
+  --t-xs:13px;--t-sm:14px;--t-md:16px;--t-lg:20px;--t-xl:26px;--t-2xl:32px;
+  --shadow:none;--tint-mix:0%;--edge-mix:0%;
+  --r-lg:20px;--r-md:0px;--r-sm:8px;
   --ease:cubic-bezier(.2,.8,.2,1);
   --accent:var(--slate);
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0A1017;--surface:#121A23;--surface2:#1B2531;--line:#243040;--line2:#2F3D4E;
-  --ink:#EDF1F5;--ink2:#B8C3CE;--ink3:#96A3B1;
-  --brand:#8FB6F2;--on-accent:#0A1017;
-  --show:#8FB6F2;--soon:#F2B54E;--jam:#FF8C7C;--easing:#F2B54E;--go:#55D58E;--calm:#8FB6F2;--slate:#A9B5C1;
-  --amber-fill:#F2B54E;--flow:#8FB6F2;
-  --shadow:none;--tint-mix:13%;--edge-mix:30%;
+  --bg:#151515;--surface:#232323;--surface2:#2E2E2E;--fog:#1C1C1C;--ivory:#2C2822;--line:#2F2F2F;--line2:#3C3C3C;
+  --ink:#EDEDED;--ink2:#BDBDBD;--ink3:#9A9A9A;
+  --ember:#FF7A45;--ember-ink:#FF8D5E;--brass:#C9A95E;
+  --brand:#EDEDED;--on-accent:#151515;
+  --show:#BDBDBD;--soon:#C9A95E;--jam:#FF8D5E;--easing:#C9A95E;--go:#EDEDED;--calm:#BDBDBD;--slate:#9A9A9A;
+  --amber-fill:#C9A95E;--flow:#EDEDED;
   color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0A1017;--surface:#121A23;--surface2:#1B2531;--line:#243040;--line2:#2F3D4E;
-  --ink:#EDF1F5;--ink2:#B8C3CE;--ink3:#96A3B1;
-  --brand:#8FB6F2;--on-accent:#0A1017;
-  --show:#8FB6F2;--soon:#F2B54E;--jam:#FF8C7C;--easing:#F2B54E;--go:#55D58E;--calm:#8FB6F2;--slate:#A9B5C1;
-  --amber-fill:#F2B54E;--flow:#8FB6F2;
-  --shadow:none;--tint-mix:13%;--edge-mix:30%;
+  --bg:#151515;--surface:#232323;--surface2:#2E2E2E;--fog:#1C1C1C;--ivory:#2C2822;--line:#2F2F2F;--line2:#3C3C3C;
+  --ink:#EDEDED;--ink2:#BDBDBD;--ink3:#9A9A9A;
+  --ember:#FF7A45;--ember-ink:#FF8D5E;--brass:#C9A95E;
+  --brand:#EDEDED;--on-accent:#151515;
+  --show:#BDBDBD;--soon:#C9A95E;--jam:#FF8D5E;--easing:#C9A95E;--go:#EDEDED;--calm:#BDBDBD;--slate:#9A9A9A;
+  --amber-fill:#C9A95E;--flow:#EDEDED;
   color-scheme:dark}
 .s-show{--accent:var(--show)} .s-soon{--accent:var(--soon)} .s-jam{--accent:var(--jam)}
 .s-easing{--accent:var(--easing)} .s-go{--accent:var(--go)} .s-calm{--accent:var(--calm)}
@@ -203,6 +203,95 @@ footer svg{width:18px;height:18px}
   html{scroll-behavior:auto}
 }
 @media (max-width:359px){.hero .big{font-size:66px}h1#head{font-size:25px}.lead b{font-size:22px}}
+
+/* ── Ventriloc 스타일 덮어쓰기 ───────────────────────────
+   제목·큰 숫자는 400 굵기, 자간 -0.02em(포스터형). 그림자 없음, 면 색으로만 층 구분.
+   모양: 버튼 0px · 칩 알약형 · 안내판 왼쪽 위만 둥근 비대칭. 색은 95% 흑백, 주황은 한 점. */
+body{font-weight:400;font-size:var(--t-md);line-height:1.6;letter-spacing:-.005em}
+.brand{font-weight:500;font-size:16px;letter-spacing:-.02em;gap:9px;color:var(--ink)}
+.brand svg{width:26px;height:26px}
+.fresh{background:var(--surface);border:0;min-height:32px;padding:0 14px;font-weight:500;color:var(--ink2)}
+.fresh i{background:var(--ember)} .fresh.warn i{background:var(--brass)} .fresh.off i{background:var(--ink3)}
+.demo-band{background:var(--surface);border-bottom:0;color:var(--ink2)}
+.demo-band .tag b{background:var(--ink);color:var(--bg);border-radius:200px;padding:1px 9px;font-weight:500}
+.demo-band button{font-weight:500;text-decoration-color:var(--ember);text-decoration-thickness:1px}
+/* 안내판: 왼쪽 위만 둥근 비대칭, 그림자·테두리 없음 */
+.sign{background:var(--surface);border:0;border-radius:28px 0 0 0;margin-top:8px}
+.s-jam .sign,.s-easing .sign,.s-soon .sign{background:var(--ivory)}
+.sign .top{padding:22px 22px 20px}
+.badge{height:28px;padding:0 12px;border:0;background:var(--bg);color:var(--ink);font-weight:500;font-size:13px;border-radius:200px}
+.badge i{background:var(--ink3)}
+.s-jam .badge{background:var(--ember);color:#202020}.s-jam .badge i{background:#202020}
+.s-easing .badge i,.s-soon .badge i{background:var(--brass)}
+.s-go .badge i{background:var(--ember)}
+h1#head{font-weight:400;font-size:var(--t-2xl);line-height:1.15;letter-spacing:-.02em;margin-top:16px}
+.hero{background:var(--bg);box-shadow:none;margin:0 8px 8px;border-radius:20px 0 0 0;padding:20px 18px 18px}
+.hero .lab{font-weight:500;font-size:var(--t-sm);color:var(--ink3);letter-spacing:0}
+.hero .big{font-weight:400;font-size:88px;line-height:.91;letter-spacing:-.04em;margin:12px 0 0 -4px}
+.hero .big.txt{font-weight:400;font-size:48px;line-height:1;letter-spacing:-.03em}
+.hero .big .unit{color:var(--ink3)}
+.hero .after{font-weight:500;font-size:17px;letter-spacing:-.01em;color:var(--ink2);margin-top:14px}
+.s-jam .hero .after{color:var(--ember-ink)}
+.road .tr{height:4px;background:var(--surface2)}
+.road .fill{background:var(--ink)}
+.s-jam .road .fill{background:var(--ember)}
+.road .dot{width:14px;height:14px;margin:-7px 0 0 -7px;border:3px solid var(--ink);background:var(--bg)}
+.s-jam .road .dot{border-color:var(--ember)}
+.road .flag{width:10px;height:10px;margin-top:-5px;border-radius:0;background:var(--ink)}
+.road .lbl{font-weight:500;color:var(--ink3)}
+.road .lbl.now{font-weight:500;color:var(--ink)}
+.road .lbl.end{color:var(--ink);font-weight:500}
+/* 나가도 됨: 흑백 반전 */
+.s-go .sign{background:var(--ink);border:0}
+.s-go .badge{background:color-mix(in srgb,var(--bg) 14%,transparent);color:var(--bg);border:0}
+.s-go h1#head{color:var(--bg)}
+.s-go .hero .big{color:var(--ink)}
+.s-go .hero .after{color:var(--ink2)}
+.s-stale .sign{border:1px dashed var(--line2)}
+#tip{font-size:var(--t-md);color:var(--ink2);margin:18px 4px 0}
+/* 버튼: 0px 모서리, 굵기 400~500 */
+.btn{border-radius:0;font-weight:500;font-size:var(--t-md);letter-spacing:-.02em;min-height:54px}
+.alarm{border:1px solid var(--ink);background:transparent;color:var(--ink)}
+.alarm small{color:var(--ink3);font-weight:400}
+.alarm[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.retry,.primary{background:var(--ink);color:var(--bg);border:0}
+/* 섹션: 그림자 없이 회색 면 */
+section.sec{margin-top:44px}
+.card{background:var(--surface);border:0;box-shadow:none;border-radius:20px;padding:24px 20px}
+.card h2,.sec>h2{font-weight:400;font-size:24px;line-height:1.2;letter-spacing:-.02em}
+#flow h2{font-size:var(--t-sm);font-weight:500;color:var(--ink3);letter-spacing:0;line-height:1.4}
+.lead{font-weight:400;color:var(--ink2)}
+.lead b{font-weight:400;font-size:var(--t-xl);line-height:1.2;letter-spacing:-.02em;margin-top:6px}
+.lead .now-rate{font-weight:400;color:var(--ink2);margin-top:6px}
+.lead .now-rate .num{font-weight:500}
+.legend{font-weight:400}
+.legend .sw{border-top:2px solid var(--ink);width:20px}
+.legend .sw-d{border-top:2px dotted var(--brass)}
+.cap{color:var(--ink2);font-size:var(--t-sm)}
+.show{border-top:1px solid var(--line2)}
+.show .t{font-weight:400;font-size:20px;letter-spacing:-.02em;line-height:1.3}
+.show .m{color:var(--ink2)}
+.strip{height:4px;background:var(--surface2);margin-top:32px}
+.strip b{height:4px}
+.strip .p{background:var(--ink3)}
+.strip .j{background:var(--ember)}
+.strip .needle{background:var(--ink);box-shadow:0 0 0 2px var(--surface);top:-8px;width:2px;height:20px}
+.strip .jl{color:var(--ember-ink);font-weight:500}
+.strip-l{font-weight:400}
+.busy{background:var(--ivory);border:0;border-radius:0;font-weight:400;color:var(--ink)}
+.busy svg{color:var(--ember)}
+.busy .num{color:var(--ink);font-weight:500;text-decoration:underline;text-decoration-color:var(--ember);text-underline-offset:4px;text-decoration-thickness:1.5px}
+.empty .e1{font-weight:400;font-size:20px}
+.how li{border-top:1px solid var(--line2);color:var(--ink2)}
+.how .ic{background:var(--bg);color:var(--ink);border-radius:200px}
+.how b{font-weight:500;color:var(--ink)}
+.src{border-top:1px solid var(--line2)}
+.demo-card{background:var(--ivory);border:0;border-radius:28px 0 0 0;margin-top:12px}
+#tip a,#demoLink{text-decoration-color:var(--ember)!important;text-decoration-thickness:1px}
+button:focus-visible,a:focus-visible{outline:2px solid var(--ember);outline-offset:3px;border-radius:0}
+::selection{background:color-mix(in srgb,var(--ember) 30%,transparent)}
+footer{color:var(--ink3)}
+@media (max-width:359px){.hero .big{font-size:72px}h1#head{font-size:28px}.lead b{font-size:23px}}
 </style>
 </head>
 <body class="s-wait">
@@ -211,7 +300,7 @@ footer svg{width:18px;height:18px}
 <div id="first">
  <div class="wrap">
   <header>
-    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#1A4F9C"/><circle cx="16" cy="16" r="9.2" fill="none" stroke="#fff" stroke-width="2.4"/><path d="M16 10.6V16" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><path d="M16 16h6.2m-2.4-2.6 2.6 2.6-2.6 2.6" fill="none" stroke="#5FE09A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>올팍 출차시계</div>
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="16" fill="currentColor"/><circle cx="16" cy="16" r="9" fill="none" stroke="var(--bg)" stroke-width="1.8"/><path d="M16 10.8V16" stroke="var(--bg)" stroke-width="1.8" stroke-linecap="round"/><path d="M16 16h6m-2.2-2.4 2.4 2.4-2.4 2.4" fill="none" stroke="#FF682C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>올팍 출차시계</div>
     <div class="fresh" id="fresh"><i></i><span id="freshTxt" class="num">확인 중</span></div>
   </header>
 
@@ -430,7 +519,7 @@ const ICON_CLOCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 function renderShows(){
   const box=$('shows');
   if(schedErr){ box.innerHTML='<p class="cap">공연 정보를 못 불러왔어요. 주차장 상황만 보고 알려 드려요.</p>'; return; }
-  if(!shows.length){ box.innerHTML='<div class="empty"><svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="12" fill="color-mix(in srgb,var(--brand) 10%,var(--surface))"/><path d="M12 22l5 5 11-12" fill="none" stroke="var(--brand)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><div><p class="e1">오늘은 큰 공연이 없어요.</p><p class="e2">나가는 길이 막힐 일은 적어요.</p></div></div>'; return; }
+  if(!shows.length){ box.innerHTML='<div class="empty"><svg viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="20" fill="var(--bg)"/><path d="M12 22l5 5 11-12" fill="none" stroke="var(--brand)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg><div><p class="e1">오늘은 큰 공연이 없어요.</p><p class="e2">나가는 길이 막힐 일은 적어요.</p></div></div>'; return; }
   const t=now();
   box.innerHTML=shows.map(s=>{
     if(!s.start) return `<div class="show"><div class="t">${esc(s.title)}</div><div class="m">${esc(s.plc)} · 시간 정보 없음</div></div>`;
@@ -465,7 +554,7 @@ function monoPath(pts){
 // 화면용으로만 한 번 더 고르게(1·2·3·2·1 가중 평균). 판단에는 쓰지 않음
 const soften=arr=>arr.map((p,i)=>{ if(p.r===null) return p; let s=0,w=0; for(let k=-2;k<=2;k++){ const q=arr[i+k]; if(q&&q.r!==null){ const wk=3-Math.abs(k); s+=q.r*wk; w+=wk; } } return {t:p.t,r:s/w}; });
 const lvName=r=>r>=JAM_PER_MIN?'막힘':r>=6?'보통':'한산';
-const lvVar=r=>r>=JAM_PER_MIN?'var(--jam)':r>=6?'var(--amber-fill)':'var(--go)';
+const lvVar=r=>r>=JAM_PER_MIN?'var(--ember)':'var(--ink)';
 function chart(s){
   const svg=$('chart'), t=now(), W=320,H=228,L=40,R=10,T=40,B=30;
   const onset=surgeOnset();
@@ -494,10 +583,10 @@ function chart(s){
     <clipPath id="cPlot"><rect x="${L}" y="0" width="${PW}" height="${y0+1}"/></clipPath></defs>`;
   // 눈금: 애플 날씨처럼 옅은 점선 + 왼쪽에 말
   g+=`<line x1="${L}" x2="${W-R}" y1="${y6}" y2="${y6}" stroke="var(--line2)" stroke-dasharray="1 4" stroke-linecap="round" stroke-width="1.5"/>`;
-  g+=`<line x1="${L}" x2="${W-R}" y1="${yJ}" y2="${yJ}" stroke="var(--jam)" stroke-opacity=".45" stroke-dasharray="1 4" stroke-linecap="round" stroke-width="1.5"/>`;
+  g+=`<line x1="${L}" x2="${W-R}" y1="${yJ}" y2="${yJ}" stroke="var(--ember)" stroke-opacity=".7" stroke-dasharray="1 4" stroke-linecap="round" stroke-width="1.5"/>`;
   g+=`<line x1="${L}" x2="${W-R}" y1="${y0}" y2="${y0}" stroke="var(--line2)"/>`;
-  const ylab=(y,l,c)=>`<text x="${L-8}" y="${y+4.5}" font-size="12.5" font-weight="600" text-anchor="end" fill="${c}">${l}</text>`;
-  g+=ylab((y6+y0)/2,'한산','var(--go)')+ylab((yJ+y6)/2,'보통','var(--soon)')+ylab(Math.max(T+4,(yJ+T)/2),'막힘','var(--jam)');
+  const ylab=(y,l,c)=>`<text x="${L-8}" y="${y+4.5}" font-size="12.5" font-weight="500" text-anchor="end" fill="${c}">${l}</text>`;
+  g+=ylab((y6+y0)/2,'한산','var(--ink3)')+ylab((yJ+y6)/2,'보통','var(--ink3)')+ylab(Math.max(T+4,(yJ+T)/2),'막힘','var(--ember-ink)');
   // x축: 애플 날씨처럼 지금·10분 단위 눈금
   const ticks=[[x0,'30분 전'],[t-15*MIN,'15분 전'],[t,'지금'],[t+15*MIN,'15분 뒤'],[t+30*MIN,'30분 뒤']]; if(x1>t+40*MIN) ticks[4]=[x1,Math.round((x1-t)/MIN)+'분 뒤'];
   // 글자가 겹치면 덜 중요한 눈금(15분)부터 뺌
@@ -516,11 +605,11 @@ function chart(s){
   let body='';
   const segs=[]; let cur=[]; for(const p of view){ if(p.r===null){ if(cur.length) segs.push(cur); cur=[]; } else cur.push(p); } if(cur.length) segs.push(cur);
   for(const seg of segs){ if(seg.length<2) continue; const pts=seg.map(p=>[X(p.t),Y(p.r)]), line=monoPath(pts);
-    body+=`<g class="${anim?'ca-area':''}"><path d="${line} L${pts[pts.length-1][0].toFixed(1)},${y0} L${pts[0][0].toFixed(1)},${y0} Z" fill="url(#gLv)" opacity=".38" mask="url(#mFade)"/></g>`;
-    body+=`<path class="${anim?'ca-line':''}" pathLength="1" d="${line}" fill="none" stroke="url(#gLv)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`; }
+    body+=`<g class="${anim?'ca-area':''}"><path d="${line} L${pts[pts.length-1][0].toFixed(1)},${y0} L${pts[0][0].toFixed(1)},${y0} Z" fill="var(--ink)" opacity=".07" mask="url(#mFade)"/></g>`;
+    body+=`<path class="${anim?'ca-line':''}" pathLength="1" d="${line}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`; }
   if(future.length>1){ const pts=future.map(p=>[X(p.t),Y(p.r)]), line=monoPath(pts);
-    body+=`<g class="${anim?'ca-late':''}"><path d="${line} L${pts[pts.length-1][0].toFixed(1)},${y0} L${pts[0][0].toFixed(1)},${y0} Z" fill="url(#gLv)" opacity=".14" mask="url(#mFade)"/>`;
-    body+=`<path d="${line}" fill="none" stroke="url(#gLv)" stroke-width="3" stroke-dasharray="0.1 6.5" stroke-linecap="round" opacity=".95"/></g>`; }
+    body+=`<g class="${anim?'ca-late':''}"><path d="${line} L${pts[pts.length-1][0].toFixed(1)},${y0} L${pts[0][0].toFixed(1)},${y0} Z" fill="var(--brass)" opacity=".06" mask="url(#mFade)"/>`;
+    body+=`<path d="${line}" fill="none" stroke="var(--brass)" stroke-width="2" stroke-dasharray="1.5 4.5" stroke-linecap="round"/></g>`; }
   g+=`<g clip-path="url(#cPlot)">${body}</g>`;
   // 손가락으로 짚었을 때 그 뒤를 흐리게(로빈후드·토스)
   g+=`<rect id="dim" x="0" y="${T-12}" width="0" height="${y0-T+12}" fill="var(--surface)" opacity=".62" style="display:none"/>`;
@@ -528,9 +617,9 @@ function chart(s){
   const goT = s.go && s.go>t ? s.go : (s.tone==='go'?t:null);
   if(goT && goT<=x1){ const fx=X(goT), fp=future.length?future.reduce((b,q)=>Math.abs(q.t-goT)<Math.abs(b.t-goT)?q:b,future[0]):null, fy=fp?Y(fp.r):y0;
     const label=goT>t?`${fmt(goT)} 출발`:'지금 출발', w=label.length*8.2+24, bx=Math.min(W-R-w+4,Math.max(L-4,fx-w/2));
-    g+=`<line class="${anim?'ca-late':''}" x1="${fx}" x2="${fx}" y1="${T-10}" y2="${fy-7}" stroke="var(--go)" stroke-width="1.5" stroke-dasharray="3 3"/>`;
-    g+=`<g class="${anim?'ca-pop':''}"><rect x="${bx}" y="${T-36}" width="${w}" height="26" rx="13" fill="var(--go)"/><text x="${bx+w/2}" y="${T-18.5}" font-size="13.5" font-weight="700" text-anchor="middle" fill="var(--on-accent)">${label}</text></g>`;
-    if(goT>t) g+=`<circle cx="${fx}" cy="${fy}" r="5.5" fill="var(--surface)" stroke="var(--go)" stroke-width="3"/>`; }
+    g+=`<line class="${anim?'ca-late':''}" x1="${fx}" x2="${fx}" y1="${T-10}" y2="${fy-7}" stroke="var(--ember)" stroke-width="1" stroke-dasharray="2 3"/>`;
+    g+=`<g class="${anim?'ca-pop':''}"><rect x="${bx}" y="${T-36}" width="${w}" height="26" rx="0" fill="var(--ink)"/><text x="${bx+w/2}" y="${T-18.5}" font-size="13.5" font-weight="500" text-anchor="middle" fill="var(--bg)">${label}</text></g>`;
+    if(goT>t) g+=`<circle cx="${fx}" cy="${fy}" r="6" fill="var(--ember)" stroke="var(--surface)" stroke-width="2.5"/>`; }
   // 지금 점: 레벨 색 + 퍼지는 고리
   const lastV=view[view.length-1]||{r:null}, lastP=past[past.length-1]||{r:null};
   if(lastV.r!==null){ const c=lvVar(lastV.r), cy=Y(lastV.r); g+=`<circle class="pulse" cx="${xn}" cy="${cy}" r="7" fill="${c}" opacity=".35"/><circle cx="${xn}" cy="${cy}" r="6" fill="${c}" stroke="var(--surface)" stroke-width="2.5"/>`; }
