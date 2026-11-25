@@ -149,7 +149,7 @@
       const minutes = duration ? Number(duration[1] || 0) * 60 + Number(duration[2] || duration[3] || 0) : null;
       for (const slot of sessionMinutes(item, day)) {
         const start = slot === null ? null : midnight + slot * MIN;
-        const show = { evtSeq: item.evtSeq ?? null, title: item.title.trim(), plc: item.plc.trim(),
+        const show = { evtSeq: item.evtSeq ?? null, title: item.title.normalize('NFKC').replace(/\s+/g, ' ').trim(), plc: item.plc.trim(),
           genre: item.cultureGenre || '', day, start, end: start !== null && minutes ? start + minutes * MIN : null,
           endEstimated: Boolean(minutes && /약|예상|내외/.test(rawDuration)), tm: item.tm || '', ndTm: rawDuration };
         shows.set(showKey(show), show);
@@ -327,6 +327,11 @@
       return result('show', '공연 중', '공연이 진행 중이에요', '예상 종료', clock(end), '', '종료 시각은 공연 일정과 러닝타임을 기준으로 계산해요.');
     if (end && t <= end + 110 * MIN)
       return result('soon', '공연 종료 후', '곧 출차가 몰릴 수 있어요', '추천 출발', '지금', '공연 종료 후 집중 구간', '아직 대량 출차 신호가 없어요. 종료 후 흐름이 빠르게 바뀔 수 있어요.', t);
+    const upcoming = shows.filter(show => show.start && show.start > t && show.start - t < 6 * 60 * MIN)
+      .sort((a, b) => a.start - b.start)[0];
+    if (!selectedShow && upcoming)
+      return result('show', '공연 전', '오늘 공연이 아직 시작 전이에요', '첫 공연 시작', clock(upcoming.start), '',
+        '공연이 끝나기 전에는 출차가 몰리지 않아요. 종료 무렵부터 출차 흐름을 보고 출발 시각을 안내해요.');
     return result('calm', '평소 수준', '지금 출발하기 좋아요', '추천 출발', '지금', '출차 집중 신호가 없어요',
       '최근 5분간 주차 대수 변화가 대량 출차 기준에 못 미쳤어요.', t);
   }

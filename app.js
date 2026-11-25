@@ -224,8 +224,8 @@
     $('dateText').textContent = dateFormat.format(s.time);
     const hasTime = !!d.big;
     $('timeLabel').textContent = hasTime ? (s.selectedShow && d.lab === '예상 종료' ? '내 공연 종료 예정' : d.lab) : '예상 출발 시각';
-    $('goTime').textContent = d.big || '––:––';
-    $('goTime').parentNode.classList.toggle('text-time', !!d.big && !/^\d/.test(d.big));
+    $('goTime').textContent = d.big || '확인 중';
+    $('goTime').parentNode.classList.toggle('text-time', !d.big || !/^\d/.test(d.big));
     $('remaining').hidden = !d.after || !/^약/.test(d.after);
     $('remaining').textContent = d.after || '';
     $('heroTip').textContent = armed ? '출발 알림이 켜져 있어요. 이 화면을 켜 두세요.' : d.tip;
