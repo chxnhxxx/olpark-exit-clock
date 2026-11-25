@@ -13,11 +13,12 @@ import pathlib
 import re
 import time
 import urllib.parse
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 
 KEY = os.environ["KOPIS_SERVICE_KEY"]
-BASE = "http://www.kopis.or.kr/openApi/restful/"
+BASES = ("https://www.kopis.or.kr/openApi/restful/", "http://www.kopis.or.kr/openApi/restful/")
 HALLS = {"체조경기장": "KSPO DOME", "올림픽홀": "올림픽홀",
          "핸드볼경기장": "티켓링크 라이브 아레나", "우리금융아트홀": "우리금융아트홀"}
 FACILITY_QUERIES = ("올림픽공원", "KSPO", "올림픽홀", "우리금융아트홀", "티켓링크 라이브 아레나", "핸드볼경기장")
@@ -25,15 +26,23 @@ FACILITY_QUERIES = ("올림픽공원", "KSPO", "올림픽홀", "우리금융아�
 
 def get(path, **params):
     query = urllib.parse.urlencode(dict(service=KEY, **params))
-    for attempt in range(3):
+    last = ""
+    for attempt in range(4):
+        base = BASES[attempt % len(BASES)]
+        req = urllib.request.Request(base + path + "?" + query, headers={"User-Agent": "Mozilla/5.0 olpark-exit-clock"})
         try:
-            with urllib.request.urlopen(BASE + path + "?" + query, timeout=40) as r:
+            with urllib.request.urlopen(req, timeout=40) as r:
                 body = r.read()
             break
-        except Exception as e:  # never echo the URL: it holds the key
-            if attempt == 2:
-                raise RuntimeError(f"KOPIS 요청 실패 ({path.split('/')[0]}): {type(e).__name__}") from None
-            time.sleep(2 + attempt * 3)
+        except urllib.error.HTTPError as e:  # never echo the URL: it holds the key
+            snippet = e.read()[:200].decode("utf-8", "replace").replace(KEY, "***")
+            last = f"HTTP {e.code} ({base.split('/')[0]}) {snippet!r}"
+        except Exception as e:
+            last = f"{type(e).__name__} ({base.split('/')[0]})"
+        print("KOPIS 재시도:", path.split('/')[0], last)
+        time.sleep(2 + attempt * 3)
+    else:
+        raise RuntimeError(f"KOPIS 요청 실패 ({path.split('/')[0]}): {last}")
     try:
         root = ET.fromstring(body)
     except ET.ParseError:
