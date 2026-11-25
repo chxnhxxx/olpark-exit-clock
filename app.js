@@ -220,7 +220,7 @@
     $('hero').dataset.tone = d.tone;
     $('advice').textContent = d.head;
     $('statusText').textContent = d.chip;
-    $('sourceText').textContent = (s.demo ? '공연 기록 재현' : '실시간 주차현황') + ' · 세 주차장 합산';
+    $('sourceText').textContent = (s.demo ? (s.record.id.startsWith('2024') ? '공연 기록 재현' : '공연 밤 실측 재생') : '실시간 주차현황') + ' · 세 주차장 합산';
     $('dateText').textContent = dateFormat.format(s.time);
     const hasTime = !!d.big;
     $('timeLabel').textContent = hasTime ? (s.selectedShow && d.lab === '예상 종료' ? '내 공연 종료 예정' : d.lab) : '예상 출발 시각';
@@ -236,9 +236,19 @@
     $('liveMode').setAttribute('aria-pressed', String(!s.demo));
     $('replay').hidden = !s.demo;
     if (s.demo) {
+      const rec = s.record;
+      if ($('seek').dataset.record !== rec.id) {
+        $('seek').dataset.record = rec.id;
+        $('seek').min = rec.first; $('seek').max = rec.last;
+        document.querySelector('.replay-heading p').textContent = rec.label;
+        const ticks = document.querySelectorAll('.replay .ticks span');
+        ticks[0].textContent = time(s.time - (s.minute - rec.first) * 60000) + '부터';
+        ticks[1].textContent = time(s.time + (rec.last - s.minute) * 60000) + '까지';
+        document.querySelectorAll('[data-minute]').forEach((btn, i) => { btn.dataset.minute = rec.steps[i]; });
+      }
       $('seek').value = s.minute;
       $('seek').setAttribute('aria-valuetext', time(s.time));
-      $('seek').style.setProperty('--position', (s.minute - 300) / 150 * 100 + '%');
+      $('seek').style.setProperty('--position', (s.minute - rec.first) / Math.max(1, rec.last - rec.first) * 100 + '%');
       $('replayNow').textContent = time(s.time);
       $('play').setAttribute('aria-label', s.playing ? '기록 일시정지' : '기록 재생');
       $('play').querySelector('use').setAttribute('href', s.playing ? '#i-pause' : '#i-play');
@@ -254,7 +264,7 @@
   }
 
   $('liveMode').onclick = () => { if (current?.demo) { changeUrl(false); clock.live(); } };
-  $('demoMode').onclick = () => { if (!current?.demo) { changeUrl(true); clock.replay(); } };
+  $('demoMode').onclick = () => { if (!current?.demo) { changeUrl(true); clock.replay(undefined, clock.recordDefault() || '2024-07-20'); } };
   $('retry').onclick = clock.refresh;
   $('play').onclick = clock.togglePlay;
   $('seek').oninput = event => clock.seek(+event.target.value);

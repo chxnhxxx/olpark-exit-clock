@@ -45,6 +45,7 @@
         <p class="recent-copy"></p>
       </div>
       <p class="recent-note">이날의 주차 실측 기록은 없어요. 혼잡 예상 구간은 2024년 공연 밤의 출차 흐름을 참고했어요.</p>
+      <button type="button" class="recent-measured panel-link" hidden>이날 실측 기록으로 출차 흐름 재생</button>
     </div>`;
   dashboard.after(section);
 
@@ -71,6 +72,7 @@
     .recent-steps button[aria-pressed="true"]::before{background:var(--green)}
     .recent-copy{margin-top:5px;font-size:15px;line-height:1.55}
     .recent-note{grid-column:1/-1;margin-top:18px;border-top:1px solid var(--line);padding-top:12px;font-size:14px;line-height:1.55}
+    .recent-measured{grid-column:1/-1;justify-self:start;margin-top:8px;width:auto;min-height:44px;padding:8px 14px;background:var(--green2);color:#fff;border-radius:8px;font-weight:650}
     .recent-loading{margin-top:14px}.recent-retry{margin-top:10px;width:auto}
     @media(max-width:740px){.recent-panel{padding:20px;margin-top:14px}.recent-content{grid-template-columns:minmax(0,1fr);gap:15px;margin-top:16px}.recent-playback{border-top:1px solid var(--line);padding-top:14px}.recent-show h3{margin-bottom:3px}.recent-note{margin-top:0}.recent-kind{font-size:12px}}
     @media(max-width:480px){.recent-panel{padding:18px}.recent-panel .panel-title{gap:6px}.recent-panel .icon-tile{flex:none}.recent-choice{margin-top:12px}.recent-steps button{font-size:13px}}
@@ -132,8 +134,33 @@
     clearInterval(timer);
     timer = undefined;
   }
+  let recordDays = null;
+  async function recordIndex() {
+    if (recordDays) return recordDays;
+    try {
+      const r = await fetch('records/index.json', { cache: 'no-cache' });
+      recordDays = r.ok ? new Set(((await r.json()).days || []).filter(d => d.count >= 30).map(d => d.day)) : new Set();
+    } catch { recordDays = new Set(); }
+    return recordDays;
+  }
+  function renderMeasured(show) {
+    const has = recordDays?.has(show.day);
+    q('.recent-measured').hidden = !has;
+    q('.recent-note').textContent = has
+      ? '이날 공연 밤에 1분 간격으로 저장한 주차 실측 기록이 있어요. 아래 버튼으로 그날의 출차 흐름과 출발 안내를 다시 볼 수 있어요.'
+      : '이날의 주차 실측 기록은 없어요. 혼잡 예상 구간은 2024년 공연 밤의 출차 흐름을 참고했어요.';
+  }
+  q('.recent-measured').addEventListener('click', () => {
+    const show = performances[select.selectedIndex];
+    if (!show || !window.exitClock) return;
+    const url = new URL(location.href);
+    url.searchParams.set('demo', '1'); url.searchParams.set('record', show.day); url.searchParams.delete('at');
+    try { history.replaceState(null, '', url); } catch {}
+    window.exitClock.replay(undefined, show.day).then(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  });
   function renderShow() {
     const show = performances[select.selectedIndex];
+    renderMeasured(show);
     q('.recent-meta').textContent = dayText(show.day) + ' · ' + venue(show);
     q('h3').textContent = show.title;
     const link = q('.recent-official');
@@ -173,7 +200,7 @@
     status.textContent = '최근 공연 일정을 찾고 있어요.';
     retry.hidden = true;
     try {
-      const { months } = await window.parkSchedule.load();
+      const [{ months }] = await Promise.all([window.parkSchedule.load(), recordIndex()]);
       const now = Date.now();
       const { ended, next } = findLatest(months, now);
       performances = ended;

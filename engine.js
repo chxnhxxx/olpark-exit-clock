@@ -8,8 +8,9 @@
   const SURGE = 60;
   const CALM = 25;
   const DURATION = 45;
-  const FIRST = 300;
-  const LAST = 450;
+  // Measured show night used by default for the 기록 체험 (records/<day>.json, saved by record.yml).
+  // null keeps the July 2024 archive. ?record=YYYY-MM-DD picks any saved night.
+  const DEFAULT_RECORD = null;
   const API = 'https://www.ksponco.or.kr/online/main/parkingorsApi.do?apiKey=PARKING21803504';
   const SCHEDULE = 'https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoListAjax.es';
   const archive = window.PATTERN_2024.d20.v;
@@ -21,6 +22,15 @@
   const listeners = new Set();
   const clock = time => new Date(time + SEOUL).toISOString().slice(11, 16);
   const dayKey = time => new Date(time + SEOUL).toISOString().slice(0, 10);
+  const ARCHIVE_SOURCE = {
+    id: '2024-07-20', label: '2024.07.20(토) 실제 기록', base: BASE, first: 300, last: 450, start: 380,
+    steps: [300, 380, 420], shows: recordedShows,
+    samples: Array.from({ length: 451 }, (_, m) => {
+      const i = Math.floor(m / 5), mix = m % 5 / 5;
+      return [BASE + m * MIN, Math.round(archive[i] + ((archive[i + 1] ?? archive[i]) - archive[i]) * mix)];
+    }),
+  };
+  let source = ARCHIVE_SOURCE;
   let demo = false, started = false, playing = false, minute = 380;
   let player, generation = 0, polling = false, loadingShows = false;
   let lastOk = 0, liveErr = false, schedErr = false, scheduleDay = '', lastScheduleTry = 0;
@@ -236,10 +246,28 @@
     return Math.abs(delta) <= 400 ? delta : null;
   }
   function archiveSamples(end) {
-    return Array.from({ length: end + 1 }, (_, m) => {
-      const i = Math.floor(m / 5), mix = m % 5 / 5;
-      return [BASE + m * MIN, Math.round(archive[i] + ((archive[i + 1] ?? archive[i]) - archive[i]) * mix)];
-    });
+    const limit = source.base + end * MIN;
+    return source.samples.filter(s => s[0] <= limit);
+  }
+  async function loadRecord(day) {
+    if (!/^\d{4}-\d\d-\d\d$/.test(day || '')) return null;
+    const doc = await fetchJSON('records/' + day + '.json');
+    const base = Date.parse(day + 'T00:00:00+09:00');
+    const samples = (doc.samples || []).filter(s => Number.isInteger(s[0]) && Number.isInteger(s[1]))
+      .sort((a, b) => a[0] - b[0]).map(([m, v]) => [base + m * MIN, v]);
+    if (samples.length < 30) return null;
+    const minuteOf = t => Math.round((t - base) / MIN);
+    let first = minuteOf(samples[0][0]) + 6, last = minuteOf(samples.at(-1)[0]);
+    // The first surge of the night anchors a 2.5-hour window around the exit rush.
+    const onsetSample = samples.find(s => s[0] >= base + first * MIN && dropAt(samples, s[0]) >= SURGE);
+    const onset = onsetSample ? minuteOf(onsetSample[0]) : null;
+    if (onset !== null) { first = Math.max(first, onset - 60); last = Math.min(last, onset + 90); }
+    const clamp = m => Math.max(first, Math.min(last, m));
+    const steps = onset === null ? [first, clamp(Math.round((first + last) / 2)), last]
+      : [clamp(onset - 30), clamp(onset + 10), clamp(onset + DURATION)];
+    const [y, m, d] = day.split('-');
+    return { id: day, label: `${y}.${m}.${d}(${DAYS[new Date(base + 12 * 3600000).getUTCDay()]}) 실측 기록`,
+      base, first, last, start: steps[1], steps, samples, shows: showsForDay(doc.shows || [], day) };
   }
   function rates(samples, end) {
     if (samples.length < 2) return [];
@@ -323,9 +351,9 @@
     });
   }
   function emit() {
-    const time = demo ? BASE + minute * MIN : Date.now();
+    const time = demo ? source.base + minute * MIN : Date.now();
     const samples = demo ? archiveSamples(minute) : continuous(liveSamples);
-    const day = dayKey(time), shows = demo ? recordedShows : scheduleDay === day ? liveShows : [];
+    const day = dayKey(time), shows = demo ? source.shows : scheduleDay === day ? liveShows : [];
     const scope = 'olpark_show_selection:' + (demo ? 'replay:' : 'live:') + day;
     if (scope !== selectionScope) {
       selectionScope = scope;
@@ -337,7 +365,8 @@
     const onset = samples.find(s => time - s[0] <= 90 * MIN && dropAt(samples, s[0]) >= SURGE)?.[0] ?? null;
     const series = end ? rates(samples, end) : [];
     const decision = decide(samples, time, shows, selectedShow, drop, onset);
-    latestState = { demo, playing, time, minute: demo ? minute : null, lastOk: demo ? time : lastOk,
+    latestState = { demo, playing, time, minute: demo ? minute : null,
+      record: { id: source.id, label: source.label, first: source.first, last: source.last, steps: source.steps }, lastOk: demo ? time : lastOk,
       schedulePending: !demo && scheduleDay !== day && !schedErr, liveErr: !demo && liveErr, schedErr: !demo && schedErr,
       shows, selectedShow, decision, series,
       forecast: predict(series, onset, decision, time), rate: fresh ? series.at(-1)?.r ?? null : null,
@@ -352,18 +381,29 @@
     demo = toDemo;
   }
   function position(value) {
-    return Math.max(FIRST, Math.min(LAST, Number.isFinite(Number(value)) ? Math.round(Number(value)) : 380));
+    return Math.max(source.first, Math.min(source.last, Number.isFinite(Number(value)) ? Math.round(Number(value)) : source.start));
   }
-  function replay(value = 380) { switchMode(true); minute = position(value); emit(); }
+  function replay(value, day) {
+    if (day === ARCHIVE_SOURCE.id) source = ARCHIVE_SOURCE;
+    if (day === undefined || day === ARCHIVE_SOURCE.id) { switchMode(true); minute = position(value); emit(); return Promise.resolve(); }
+    const token = ++generation;
+    return loadRecord(day).catch(() => null).then(rec => {
+      if (token !== generation) return;
+      source = rec || ARCHIVE_SOURCE;
+      switchMode(true);
+      minute = position(value);
+      emit();
+    });
+  }
   function seek(value) { if (demo) { stopPlayer(); minute = position(value); emit(); } }
   function togglePlay() {
     if (!demo) return;
     if (playing) stopPlayer();
     else {
-      if (minute >= LAST) minute = FIRST;
+      if (minute >= source.last) minute = source.first;
       playing = true;
       player = setInterval(() => {
-        if (++minute >= LAST) stopPlayer();
+        if (++minute >= source.last) stopPlayer();
         emit();
       }, 950);
     }
@@ -383,7 +423,11 @@
     const q = new URLSearchParams(location.search);
     if (q.has('demo')) {
       const at = /^(\d{1,2}):([0-5]\d)$/.exec(q.get('at') || '');
-      replay(at ? Number(at[1]) * 60 + Number(at[2]) - 900 : 380);
+      const day = q.get('record') || DEFAULT_RECORD;
+      if (day && day !== ARCHIVE_SOURCE.id) {
+        const at2 = at ? Number(at[1]) * 60 + Number(at[2]) : undefined;
+        replay(at2, day);
+      } else replay(at ? Number(at[1]) * 60 + Number(at[2]) - 900 : 380);
     } else live();
     setInterval(() => {
       if (demo) return;
@@ -399,5 +443,6 @@
     if (latestState) fn(latestState);
     return () => listeners.delete(fn);
   }
-  window.exitClock = { subscribe, start, live, replay, seek, togglePlay, refresh, selectShow, showKey, showsForDay };
+  function recordDefault() { return DEFAULT_RECORD; }
+  window.exitClock = { subscribe, start, live, replay, recordDefault, seek, togglePlay, refresh, selectShow, showKey, showsForDay };
 })();
