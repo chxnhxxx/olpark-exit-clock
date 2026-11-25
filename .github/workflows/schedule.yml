@@ -28,12 +28,19 @@ jobs:
         run: |
           test -n "$KCISA_SERVICE_KEY" && python scripts/enrich_performances.py
         continue-on-error: true
+      - name: KOPIS 러닝타임 보강
+        id: kopis
+        env:
+          KOPIS_SERVICE_KEY: ${{ secrets.KOPIS_SERVICE_KEY }}
+        run: |
+          if [ -n "$KOPIS_SERVICE_KEY" ]; then cd scripts && cp ../schedule.json . && python kopis_enrich.py && mv schedule.json kopis_report.md ..; else echo "KOPIS 키가 없어 건너뜀"; fi
+        continue-on-error: true
       - name: 바뀌었으면 커밋
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add schedule.json
+          git add schedule.json $(ls kopis_report.md 2>/dev/null)
           git diff --cached --quiet || (git commit -m "공연 일정 갱신" && git push)
       - name: 공연정보 보강 실패 표시
-        if: steps.enrich.outcome == 'failure'
+        if: steps.enrich.outcome == 'failure' || steps.kopis.outcome == 'failure'
         run: exit 1
