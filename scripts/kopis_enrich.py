@@ -163,7 +163,7 @@ for key, evs in official.items():
         if not had and rec["minutes"]:
             for e in evs:
                 e["ndTm"] = f"{rec['minutes']}분"
-                e["ndTmSource"] = "KOPIS"
+                e["ndTmSource"] = "KOPIS " + rid
             filled.append(key)
         lines.append(f"| {ev['beginDt']} | {HALLS[h]} | {ev['title'][:28]} | {rec.get('prfnm', '')[:28]} | {cands[0][0]:.2f} | "
                      f"{ev.get('ndTm') if had else '(없음)'} | {rec.get('prfruntime') or '(없음)'} |")

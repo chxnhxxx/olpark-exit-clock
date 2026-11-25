@@ -35,6 +35,9 @@ jobs:
         run: |
           if [ -n "$KOPIS_SERVICE_KEY" ]; then python scripts/kopis_enrich.py; else echo "KOPIS 키가 없어 건너뜀"; fi
         continue-on-error: true
+      - name: 예매처(NOL 티켓) 러닝타임 보강
+        run: python scripts/ticket_runtime.py
+        continue-on-error: true
       - name: 바뀌었으면 커밋
         run: |
           git config user.name "github-actions[bot]"
