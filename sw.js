@@ -1,4 +1,25 @@
-const C='olpark-v15'; const SHELL=['./','index.html','data2024.js','manifest.json','icon.svg'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(SHELL)));self.skipWaiting();});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});
-self.addEventListener('fetch',e=>{const u=new URL(e.request.url); if(u.origin!==location.origin) return; e.respondWith(fetch(e.request).then(r=>{const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp));return r;}).catch(()=>caches.match(e.request)));});
+const CACHE = 'olpark-exit-clock-v16';
+const SHELL = ['./', './index.html', './assets/pretendard.woff2', './data2024.js', './engine.js', './flow-chart.js', './app.js', './style.css', './hero.webp', './icon.svg', './assets/icon-192.png', './assets/icon-512.png', './manifest.json', './schedule.json'];
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key =>
+    (key.startsWith('olpark-exit-clock-') || /^olpark-v\d+$/.test(key)) && key !== CACHE
+  ).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (event.request.method !== 'GET' || url.origin !== location.origin || !url.href.startsWith(self.registration.scope)) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const key = event.request.mode === 'navigate' ? new URL('index.html', self.registration.scope).href : event.request;
+    try {
+      const response = await fetch(event.request);
+      if (response.ok && response.type === 'basic') await cache.put(key, response.clone());
+      return response;
+    } catch {
+      return await cache.match(key) || Response.error();
+    }
+  })());
+});
