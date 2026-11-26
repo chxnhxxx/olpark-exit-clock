@@ -38,3 +38,4 @@ dialog{width:min(480px,calc(100% - 32px));max-height:84dvh;border:1px solid var(
 #goTime .approx{font-size:.42em;letter-spacing:-.03em;margin-right:.18em;font-weight:650}
 
 #nightReview{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}#nightReview summary{cursor:pointer;padding:10px 0;font-weight:650}#nightEvidence svg{display:block;width:100%;margin-top:10px}#nightEvidence ol{list-style:none;padding:0}#nightEvidence button{min-height:44px;text-align:start;color:var(--green);overflow-wrap:anywhere}#nightEvidence button:disabled{color:var(--muted)}
+#nightEvidence p.chart-note{background:none;border:0;border-radius:0;padding:4px 0;margin:0;line-height:1.55}

@@ -338,6 +338,9 @@
     const noShowDay = !isReplay && !shows.length && scheduleDay === dayKey(t);
     if (d === null) {
       const left = Math.max(1, Math.ceil(5 - (samples.length ? t - samples[0][0] : 0) / MIN));
+      if (noShowDay)
+        return result('wait', '공연 없음', '오늘은 공원 안 공연이 없어요', '', '', '',
+          `공연이 없어 출차가 몰릴 일은 적어요. 주차 흐름은 약 ${left}분 뒤부터 확인해 알려 드려요.`);
       return result('wait', '관측 중', '출차 흐름을 확인하고 있어요', '', '', '',
         `주차 대수를 1분마다 받아 5분 변화를 계산해요. 약 ${left}분 뒤부터 안내해요. 화면을 오래 닫아 두면 처음부터 다시 모아요.`);
     }

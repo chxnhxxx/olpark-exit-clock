@@ -221,7 +221,7 @@
     const measure = m => at(m) == null ? '관측 부족' : at(m) + '대';
     const markers = [];
     for (const show of shows) {
-      for (const [label, time] of [['시작', show.start], ['종료 예상', show.end]]) {
+      for (const [label, time] of [['시작', show.start], [show.endDefault ? '종료 추정(러닝타임 미공개)' : '종료 예상', show.end]]) {
         if (Number.isFinite(time)) markers.push({minute:(time-base)/60000, label:show.plc + ' · ' + show.title + ' ' + label});
       }
     }
