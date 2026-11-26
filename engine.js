@@ -419,6 +419,9 @@
     const end = samples.at(-1)?.[0], fresh = end && time - end <= 5 * MIN;
     const drop = fresh ? dropAt(samples, end) : null;
     const onset = samples.find(s => time - s[0] <= 90 * MIN && dropAt(samples, s[0]) >= SURGE)?.[0] ?? null;
+    const baseline = drop === null ? null : sampleAt(samples, end - 5 * MIN);
+    const observedChange = baseline ? samples.at(-1)[1] - baseline[1] : null;
+    const observedMinutes = baseline ? Math.round((end - baseline[0]) / MIN) : null;
     const series = end ? rates(history, demo ? time : end) : [];
     const decision = decide(samples, time, shows, selectedShow, drop, onset);
     latestState = { demo, playing, time, minute: demo ? minute : null,
@@ -426,7 +429,7 @@
       schedulePending: !demo && scheduleDay !== day && !schedErr, liveErr: !demo && liveErr, schedErr: !demo && schedErr,
       shows, selectedShow, decision, series,
       forecast: predict(series, onset, decision, time), rate: fresh ? series.at(-1)?.r ?? null : null,
-      drop, total: samples.at(-1)?.[1] ?? null };
+      drop, observedChange, observedMinutes, total: samples.at(-1)?.[1] ?? null };
     listeners.forEach(fn => fn(latestState));
   }
   function stopPlayer() { clearInterval(player); playing = false; }

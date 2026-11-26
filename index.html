@@ -84,7 +84,7 @@
     </section>
     <section class="panel flow" id="flow" aria-labelledby="flowTitle">
       <div class="panel-title"><div class="panel-heading"><span class="icon-tile"><svg class="ico"><use href="#i-flow"/></svg></span><h2 id="flowTitle">출차 흐름</h2></div><button class="info-btn" data-dialog="dataDialog" aria-label="출차 흐름 그래프 읽는 법"><svg class="ico"><use href="#i-info"/></svg></button></div>
-      <div class="chart-meta"><div><p class="metric-label">분당 주차 대수 감소</p><p class="metric"><strong id="rate">—</strong><span>대/분</span></p></div><div class="legend"><span><i></i><b id="pastLabel">관측값</b></span><span id="forecastLegend"><i></i>예상</span></div></div>
+      <div class="chart-meta"><div><p class="metric-label" id="changeLabel">최근 5분 주차 대수 변화</p><p class="metric"><strong id="rate">—</strong><span id="changeUnit"></span></p></div><div class="legend"><span><i></i><b id="pastLabel">관측값</b></span><span id="forecastLegend"><i></i>예상</span></div></div>
       <svg id="flowChart" aria-label="시간대별 주차 대수 감소 추이"></svg>
       <details id="nightReview" hidden><summary>이날의 공연과 출발 권장 검증</summary><div id="nightEvidence"></div></details>
       <p class="chart-note" id="chartNote">동2·남2·북2문 주차장 합산 기준</p>

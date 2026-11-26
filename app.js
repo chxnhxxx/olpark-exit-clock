@@ -323,10 +323,13 @@
       document.querySelectorAll('[data-minute]').forEach(btn => btn.setAttribute('aria-pressed', String(+btn.dataset.minute === s.minute)));
     }
     renderShows(s);
-    $('rate').textContent = s.rate === null ? '—' : Math.round(s.rate);
+    const change = s.observedChange;
+    $('changeLabel').textContent = '최근 약 ' + (s.observedMinutes ?? 5) + '분 주차 대수 변화';
+    $('rate').textContent = change === null ? '—' : String(Math.abs(change));
+    $('changeUnit').textContent = change === null ? '관측 중' : change === 0 ? '대 변화' : change < 0 ? '대 감소' : '대 증가';
     $('pastLabel').textContent = s.demo ? '기록 재현' : '관측값';
     $('forecastLegend').hidden = !s.forecast.length;
-    $('chartNote').textContent = s.drop === null ? '동2·남2·북2문 주차 대수의 변화를 관측하고 있어요.' : '최근 5분간 주차 대수 ' + (s.drop === 0 ? '변화 없음' : Math.abs(s.drop) + '대 ' + (s.drop > 0 ? '감소' : '증가')) + ' · 세 주차장 합산' + (s.forecast.length ? '. 점선은 지난 공연 밤의 흐름으로 그린 예상이라 잠시 오르내릴 수 있어요.' : '');
+    $('chartNote').textContent = '동2·남2·북2문 합계 · 입차와 출차가 함께 반영돼요. 그래프 단위는 대/분이에요.' + (s.forecast.length ? ' 점선은 예상값이에요.' : '');
     window.renderExitChart({ element: $('flowChart'), series: s.series, forecast: s.forecast, now: s.time, go: d.go, demo: s.demo });
     if (previous && previous.decision.tone !== d.tone) $('announce').textContent = d.head + '. ' + d.lab + ' ' + d.big;
   }
