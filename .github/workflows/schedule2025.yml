@@ -1,0 +1,24 @@
+name: schedule-2025-snapshot
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Fetch the 2025 official schedule (public, no key)
+        run: |
+          node -e "
+          const {fetchMonth}=require('./scripts/fetch_schedule.cjs');const fs=require('fs');
+          (async()=>{const months={};for(let m=1;m<=12;m++){const k='2025'+String(m).padStart(2,'0');const {rows}=await fetchMonth(k);months[k]=rows;console.log(k,rows.length);}
+          fs.writeFileSync('/tmp/schedule2025.json',JSON.stringify({fetched:new Date().toISOString(),months}));})().catch(e=>{console.error(e);process.exit(1)});"
+      - name: Commit to data-schedule-2025
+        run: |
+          git config user.name github-actions; git config user.email github-actions@users.noreply.github.com
+          git switch --orphan data-schedule-2025
+          git rm -rq . >/dev/null 2>&1 || true
+          cp /tmp/schedule2025.json schedule2025.json
+          git add schedule2025.json && git commit -qm "2025 공식 공연 일정 스냅샷" && git push -f origin data-schedule-2025
