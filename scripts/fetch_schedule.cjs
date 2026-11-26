@@ -37,7 +37,7 @@ async function fetchMonth(month, request = fetch) {
 async function refresh(destination, now = new Date()) {
   const seoul = new Date(now.getTime() + 9 * 3600000);
   const months = {}, sources = {};
-  for (const offset of [-1, 0, 1]) {
+  for (const offset of [-1, 0, 1, 2, 3, 4, 5, 6]) {
     const key = new Date(Date.UTC(seoul.getUTCFullYear(), seoul.getUTCMonth() + offset, 1))
       .toISOString().slice(0, 7).replace('-', '');
     const {rows, endpoint} = await fetchMonth(key);
@@ -45,7 +45,7 @@ async function refresh(destination, now = new Date()) {
     sources[key] = endpoint;
     console.log(key, rows.length, endpoint);
   }
-  // Update the file only after all three months have a valid response.
+  // Update the file only after every month (last month to six months ahead) has a valid response.
   fs.writeFileSync(destination, JSON.stringify({ updated: now.toISOString(), months, sources }));
 }
 

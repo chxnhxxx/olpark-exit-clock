@@ -83,13 +83,15 @@
 
   function weeklySlots(text, day) {
     // Ranges may wrap around the end of the week. Commas can also separate two times.
-    const normalized = text.replace(/([일월화수목금토])(?:요일)?\s*[~～–-]\s*([일월화수목금토])(?:요일)?/g,
+    // "평일(수), (목), (금)" and "(월,화 휴관)": drop the brackets so the listed days become anchors.
+    const normalized = text.replace(/\(\s*([일월화수목금토](?:요일)?(?:\s*[,·~～–-]\s*[일월화수목금토](?:요일)?)*)\s*\)/g, ' $1 ')
+      .replace(/([일월화수목금토])(?:요일)?\s*[~～–-]\s*([일월화수목금토])(?:요일)?/g,
       (_, from, to) => {
         let range = from, i = DAYS.indexOf(from);
         while (DAYS[i] !== to) { i = (i + 1) % 7; range += DAYS[i]; }
         return range;
       }).replace(/([일월화수목금토])(?:요일)?\s*[,·]\s*(?=[일월화수목금토](?:요일)?(?:\s|[,·]))/g, '$1');
-    const anchors = [...normalized.matchAll(/(?<![가-힣\d])(?:매주\s*)?(평일|주말|[월화수목금토일]+)(?:요일)?(?=\s|[:：/)])/g)];
+    const anchors = [...normalized.matchAll(/(?<![가-힣\d])(?:매주\s*)?(평일|주말|[월화수목금토일]+)(?:요일)?(?=\s|[:：/()])/g)];
     if (!anchors.length) return closed.test(normalized) ? [] : timesIn(normalized);
     const weekday = DAYS[new Date(day + 'T00:00:00Z').getUTCDay()];
     const common = timesIn(normalized.slice(0, anchors[0].index));
@@ -114,14 +116,19 @@
     const anchors = [...normalized.matchAll(pattern)];
     const slotsFor = clause => {
       const slots = weeklySlots(clause, day);
-      if (slots.length || closed.test(clause) || /(?:평일|주말|[월화수목금토일](?:요일)?)(?=\s|[:：/])/.test(clause)) return slots;
+      if (slots.length || closed.test(clause) || /(?:평일|주말|[월화수목금토일](?:요일)?)(?=\s|[:：/()])/.test(clause)) return slots;
       return [null]; // An event with an unspecified time can still be selected.
     };
     if (!anchors.length) return slotsFor(normalized);
     const dates = anchors.map(a => {
       let year = Number(a[1] || item.beginDt.slice(0, 4));
       if (!a[1] && item.endDt.slice(0, 4) !== item.beginDt.slice(0, 4) && +a[2] < +item.beginDt.slice(5, 7)) year++;
-      return year + '-' + a[2].padStart(2, '0') + '-' + a[3].padStart(2, '0');
+      const date = year + '-' + a[2].padStart(2, '0') + '-' + a[3].padStart(2, '0');
+      if (date >= item.beginDt && date <= item.endDt) return date;
+      // A mistyped month ("1월 15일" for an 11/13~15 run): keep the day if it fits the run's own months.
+      const fix = [item.beginDt, item.endDt].map(d => d.slice(0, 8) + a[3].padStart(2, '0'))
+        .find(d => d >= item.beginDt && d <= item.endDt);
+      return fix || date;
     });
     const sessions = [];
     for (let i = 0; i < anchors.length; ++i) {
