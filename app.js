@@ -71,7 +71,7 @@
     const source = s.demo ? '이 기록' : '오늘 일정';
     $('venueSelect').replaceChildren(new Option('공연장 전체', ''), ...options.map(name => new Option(name, name)));
     $('venueSelect').value = venue;
-    const placeholder = s.schedulePending ? '일정 확인 중' : atVenue.length ? '모든 회차' : '등록된 회차 없음';
+    const placeholder = s.schedulePending ? '일정 확인 중' : atVenue.length ? '모든 회차' : '회차 없음';
     $('showSelect').replaceChildren(new Option(placeholder, ''), ...atVenue.map(show =>
       new Option((show.start ? time(show.start) + '  ' : '') + show.title, clock.showKey(show))));
     $('showSelect').disabled = !atVenue.length;

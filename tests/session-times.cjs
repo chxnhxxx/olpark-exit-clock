@@ -44,3 +44,9 @@ assert.equal(starts('평일 19시 30분 / 주말·공휴일 14시', '2027-05-06'
 assert.equal(starts('평일 19시 30분 / 주말·공휴일 14시', '2027-05-08'), '14:00');
 assert.equal(starts('토, 일 15시', '2027-01-09'), '15:00');
 console.log('PASS holidays and shared clauses');
+// A run's last day is a show day even if the weekly text closes that weekday.
+assert.equal(box.exitClock.showsForDay([{ title: 't', plc: 'p', beginDt: '2027-01-09', endDt: '2027-03-01', tm: '화~일 11시 (월 공연없음)', ndTm: '70분' }], '2027-03-01').map(s => hhmm(s.start)).join(), '미정');
+console.log('PASS run boundary days');
+assert.equal(box.exitClock.showsForDay([{ title: 't', plc: 'p', beginDt: '2027-01-09', endDt: '2027-03-01', tm: '화, 수 11시 / 토 14시(월 공연없음) / 1월 9일 14시', ndTm: '70분' }], '2027-03-01').map(s => hhmm(s.start)).join(), '미정');
+assert.equal(box.exitClock.showsForDay([{ title: 't', plc: 'p', beginDt: '2026-10-09', endDt: '2026-10-11', tm: '2026년 10월 10일(토) 6PM', ndTm: '' }], '2026-10-09').length, 0);
+console.log('PASS run boundary with dated exceptions');

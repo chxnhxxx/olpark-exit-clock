@@ -168,10 +168,16 @@
     // KOPIS 공연시간 fills a day the official text gives no time for: an unknown time, or a weekday the
     // weekly text never mentions. Days the official text closes or lists by date stay as they are.
     const unknown = slots.length === 1 && slots[0] === null;
-    const unmentioned = !slots.length && !closed.test(text) && !/\d{1,2}\s*(?:월|[.\/])\s*\d{1,2}/.test(text);
-    if (!item.tmKopis || !(unknown || unmentioned)) return { slots, source: '' };
+    const dated = /\d{1,2}\s*(?:월|[.\/])\s*\d{1,2}/.test(text);
+    const unmentioned = !slots.length && !closed.test(text) && !dated;
+    // The first and last day of a run always has a show, even when a weekly text skips that weekday
+    // (a Monday run end on a holiday). Show it with an unknown time rather than hiding it.
+    // A pure date list ("10월 10일(토) 6PM" for a 10/9~11 run) names every show day, so it is left alone.
+    const weekly = /(?:^|[\s/|])(?:평일|주말|[월화수목금토일](?:요일)?)(?=\s*[,·~～-]|\s*\d)/.test(text.normalize('NFKC'));
+    const edge = (!dated || weekly) && (day === item.beginDt || day === item.endDt);
+    if (!item.tmKopis || !(unknown || unmentioned)) return { slots: !slots.length && edge ? [null] : slots, source: '' };
     const alt = sessionMinutes({ ...item, tm: String(item.tmKopis).replace(/HOL\s*\([^)]*\)/gi, '') }, day);
-    return alt.some(Boolean) ? { slots: alt.filter(Boolean), source: '공연예술통합전산망 공연시간' } : { slots, source: '' };
+    return alt.some(Boolean) ? { slots: alt.filter(Boolean), source: '공연예술통합전산망 공연시간' } : { slots: !slots.length && edge ? [null] : slots, source: '' };
   }
   function showKey(show) {
     return JSON.stringify([show.evtSeq ?? show.title, show.plc, show.start ?? show.day ?? null]);
