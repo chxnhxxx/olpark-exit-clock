@@ -20,6 +20,7 @@ recorder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(recorder)
 
 
+@mock.patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": ""})
 class RecordingTests(unittest.TestCase):
     def test_midnight_boundary_and_delayed_runs(self):
         previous = dt.date(2026, 12, 31)
@@ -72,6 +73,7 @@ class RecordingTests(unittest.TestCase):
             self.assertEqual(len(recorder.shows_on(dt.date(2026, 11, 27))), len(halls))
 
 
+@mock.patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": ""})
 class EnrichmentTests(unittest.TestCase):
     def test_kopis_retries_only_https(self):
         source = (ROOT / "scripts/kopis_enrich.py").read_text(encoding="utf-8-sig")
