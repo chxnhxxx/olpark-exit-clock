@@ -40,5 +40,5 @@ jobs:
           RUN_MINUTES: '320'
         run: |
           if [ -z "$KCISA_INOUT_KEY" ] && [ "${{ github.event_name }}" = schedule ]; then echo "키가 아직 없어 건너뜀"; exit 0; fi
-          if [ -f data/inout2025/state.json ] && grep -q '"done": true' data/inout2025/state.json && [ -z "$PROBE" ]; then echo "이미 완료"; exit 0; fi
+          if [ -f data/inout2025/state.json ] && grep -q '"complete": true' data/inout2025/state.json && [ -z "$PROBE" ]; then echo "이미 완료"; exit 0; fi
           python scripts/fetch_inout_2025.py
