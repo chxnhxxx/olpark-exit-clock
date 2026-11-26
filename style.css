@@ -34,3 +34,5 @@ dialog{width:min(480px,calc(100% - 32px));max-height:84dvh;border:1px solid var(
 
 /* Phones: the departure card comes first, the show picker right under it. */
 @media(max-width:740px){main#overview{display:flex;flex-direction:column;gap:14px}main#overview>.page-title{padding-bottom:3px}main#overview>.dashboard{display:contents}main#overview .dashboard>*{align-self:stretch;min-width:0}main#overview .hero{order:1}main#overview>.visit-picker{order:2;margin-bottom:0}main#overview .replay{order:3}main#overview .flow{order:4}main#overview .schedule{order:5}main#overview .guide{order:6}main#overview>#recent{order:7;margin-top:0}}
+
+#goTime .approx{font-size:.42em;letter-spacing:-.03em;margin-right:.18em;font-weight:650}

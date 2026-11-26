@@ -338,7 +338,7 @@
         guessed ? '러닝타임이 공개되지 않아 보통 공연 길이로 종료 시각을 추정했어요. 실제 출차 흐름을 보고 바로 고쳐 안내해요.' : '종료 시각은 공연 일정과 러닝타임을 기준으로 계산해요.');
     if (end && t <= end + 110 * MIN)
       return result('soon', '공연 종료 후', '곧 출차가 몰릴 수 있어요', '추천 출발', '지금', '공연 종료 후 집중 구간', '아직 대량 출차 신호가 없어요. 종료 후 흐름이 빠르게 바뀔 수 있어요.', t);
-    const upcoming = shows.filter(show => show.start && show.start > t && show.start - t < 6 * 60 * MIN)
+    const upcoming = shows.filter(show => show.start && show.start > t && (show.start - t < 6 * 60 * MIN || dayKey(show.start) === dayKey(t)))
       .sort((a, b) => a.start - b.start)[0];
     if (!selectedShow && upcoming)
       return result('show', '공연 전', '오늘 공연이 아직 시작 전이에요', '첫 공연 시작', clock(upcoming.start), '',

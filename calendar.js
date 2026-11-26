@@ -21,7 +21,7 @@
     <p class="dialog-intro">관람 날짜와 공연장을 골라 회차별 시작 시각을 확인하세요.</p>
     <div class="calendar-fields">
       <label>관람 날짜<input id="calendarDate" type="date" required></label>
-      <label>공연장<select id="calendarVenue"><option value="">전체 공연장</option></select></label>
+      <label>공연장<select id="calendarVenue"><option value="">공연장 전체</option></select></label>
     </div>
     <p class="calendar-status" role="status"></p>
     <div class="calendar-results"></div>
@@ -49,8 +49,8 @@
       }
     }
     if (requested) available.add(requested);
-    venue.replaceChildren(new Option('전체 공연장', ''));
-    for (const name of [...available].sort((a, b) => a.localeCompare(b, 'ko'))) {
+    venue.replaceChildren(new Option('공연장 전체', ''));
+    for (const name of [...available].sort((a, b) => { const order = window.parkVenues.names, i = order.indexOf(a), j = order.indexOf(b); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j) || a.localeCompare(b, 'ko'); })) {
       venue.add(new Option(name, name));
     }
     venue.value = requested || '';
@@ -90,7 +90,7 @@
     row.append(el('p', 'venue', venueName(show.plc)), el('h3', '', show.title));
     const timing = [];
     if (Number.isFinite(show.start)) timing.push(clock.format(show.start) + ' 시작');
-    if (Number.isFinite(show.end)) timing.push(clock.format(show.end) + ' 종료 예상');
+    if (Number.isFinite(show.end)) timing.push(show.endDefault ? '약 ' + clock.format(show.end) + ' 종료 (추정)' : clock.format(show.end) + ' 종료 예상');
     row.append(el('p', 'show-time', timing.join(' · ') || '회차 시각 미확인 · 공식 일정에서 확인하세요.'));
     const actions = el('div', 'calendar-actions');
     if (/^\d+$/.test(String(show.evtSeq))) {
