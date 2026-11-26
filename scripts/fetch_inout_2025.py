@@ -132,7 +132,7 @@ def main():
             save(state, park, gates)
             print(f"{len(state['done'])}/{len(PLAN['todo'])}쪽, {state['rows']:,}행", flush=True)
             since = 0
-        time.sleep(1.5)
+        time.sleep(6)  # KCISA allows one call per 5 seconds
     state["complete"] = len(state["done"]) >= len(PLAN["todo"])
     save(state, park, gates)
     print("저장:", {k: (len(v) if isinstance(v, list) else v) for k, v in state.items()})
