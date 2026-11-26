@@ -1,0 +1,89 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+
+const MIN = 60000;
+const engine = fs.readFileSync('engine.js', 'utf8');
+const archive = fs.readFileSync('data2024.js', 'utf8');
+async function settle() {
+  for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve));
+}
+async function start({ time, seed = [], rows = [], parking = 1000, record }) {
+  let now = Date.parse(time), state;
+  const intervals = [], storage = new Map([['olpark_samples', JSON.stringify(seed.map(([m, v]) => [now + m * MIN, v]))]]);
+  class Clock extends Date { static now() { return now; } }
+  const box = {
+    window: { addEventListener() {} }, Date: Clock, URLSearchParams, AbortController,
+    location: { search: '' }, document: { addEventListener() {} },
+    localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v) },
+    setInterval: (fn, ms) => { intervals.push({ fn, ms }); return intervals.length; },
+    clearInterval() {}, setTimeout, clearTimeout,
+    fetch: async url => {
+      if (url.startsWith('records/')) return { ok: true, json: async () => record };
+      if (parking === null) throw Error('offline');
+      return { ok: true, json: async () => [{ parking_sum: parking }] };
+    },
+  };
+  box.window.parkSchedule = { load: async () => ({ months: Object.fromEntries(
+    ['202611', '202612', '202701'].map(m => [m, rows])) }) };
+  vm.createContext(box);
+  vm.runInContext(archive, box);
+  vm.runInContext(engine, box);
+  const api = box.window.exitClock;
+  api.subscribe(s => { state = s; });
+  api.start();
+  await settle();
+  return {
+    api, state: () => state,
+    async advance(iso) { now = Date.parse(iso); api.refresh(); await settle(); },
+  };
+}
+function show(day, tm, ndTm = '120분') {
+  return { evtSeq: 1, title: '밤 공연', plc: 'KSPO DOME', beginDt: day, endDt: day, tm, ndTm };
+}
+(async () => {
+  const empty = await start({ time: '2026-11-27T21:00:00+09:00' });
+  assert.equal(empty.state().decision.tone, 'wait');
+  const ready = await start({ time: '2026-11-27T21:00:00+09:00',
+    seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]] });
+  assert.equal(ready.state().drop, 60);
+  assert.equal(ready.state().decision.tone, 'jam');
+  const six = await start({ time: '2026-11-27T21:00:00+09:00', seed: [[-6, 1200]] });
+  assert.equal(six.state().drop, null);
+  assert.equal(six.state().decision.tone, 'wait');
+  const night = await start({ time: '2026-12-31T23:59:00+09:00',
+    seed: [[-5, 1000], [-4, 1000], [-3, 1000], [-2, 1000], [-1, 1000]],
+    rows: [show('2026-12-31', '23:00')] });
+  night.api.selectShow(night.api.showKey(night.state().shows[0]));
+  await night.advance('2027-01-01T00:01:00+09:00');
+  assert.equal(night.state().shows.length, 1);
+  assert.equal(night.state().selectedShow.title, '밤 공연');
+  assert.equal(night.state().decision.big, '01:00');
+  assert.equal(night.state().decision.tone, 'show');
+  const afterMidnight = await start({ time: '2027-01-01T00:05:00+09:00',
+    seed: [[-5, 1000], [-4, 1000], [-3, 1000], [-2, 1000], [-1, 1000]],
+    rows: [show('2026-12-31', '23:00')] });
+  assert.equal(afterMidnight.state().decision.big, '01:00');
+  const offline = await start({ time: '2026-11-27T21:00:00+09:00', parking: null });
+  assert.equal(offline.state().decision.tone, 'stale');
+  const samples = [
+    ...Array.from({ length: 30 }, (_, i) => [1140 + i, 1000]),
+    ...Array.from({ length: 11 }, (_, i) => [1200 + i, 500]),
+  ];
+  const replay = await start({ time: '2026-11-28T12:00:00+09:00',
+    record: { samples, shows: [show('2026-11-27', '18:00')] } });
+  await replay.api.replay(1190, '2026-11-27');
+  assert.equal(replay.state().decision.tone, 'wait');
+  assert.equal(replay.state().drop, null);
+  const beforeGap = replay.state().series.filter(p => p.t <= Date.parse('2026-11-27T19:29:00+09:00') && p.r !== null);
+  assert(beforeGap.length > 0);
+  assert(beforeGap.every(p => p.r === 0));
+  replay.api.seek(1205);
+  const base = Date.parse('2026-11-27T00:00:00+09:00');
+  const gap = replay.state().series.filter(p => p.t > base + 1169 * MIN && p.t <= base + 1200 * MIN);
+  assert(gap.length > 0);
+  assert(gap.every(p => p.r === null));
+  assert.equal(replay.state().rate, 0);
+  console.log('PASS observation, 6-minute reset, 5-minute delta, month/year midnight, selection, offline, replay gaps');
+})().catch(error => { console.error(error); process.exitCode = 1; });

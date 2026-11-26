@@ -135,18 +135,28 @@
     timer = undefined;
   }
   let recordDays = null;
+  let recordsChecked = 0, recordsAttempted = 0, recordsError = false;
+  const RECORDS_TTL = 5 * MIN;
   async function recordIndex() {
-    if (recordDays) return recordDays;
+    if (recordDays && Date.now() - recordsChecked < RECORDS_TTL) return recordDays;
+    recordsAttempted = Date.now();
     try {
-      const r = await fetch('records/index.json', { cache: 'no-cache' });
-      recordDays = r.ok ? new Set(((await r.json()).days || []).filter(d => d.count >= 30).map(d => d.day)) : new Set();
-    } catch { recordDays = new Set(); }
+      const r = await fetch('records/index.json', { cache: 'no-cache', signal: AbortSignal.timeout(9000) });
+      if (!r.ok) throw Error('record index unavailable');
+      const data = await r.json();
+      if (!Array.isArray(data.days)) throw Error('record index format');
+      recordDays = new Set(data.days.filter(d => d.count >= 30).map(d => d.day));
+      recordsChecked = Date.now();
+      recordsError = false;
+    } catch { recordsError = true; }
     return recordDays;
   }
   function renderMeasured(show) {
     const has = recordDays?.has(show.day);
     q('.recent-measured').hidden = !has;
-    q('.recent-note').textContent = has
+    q('.recent-note').textContent = recordsError
+      ? '주차 기록 목록을 확인하지 못했어요. 연결이 복구되면 다시 확인해요.'
+      : has
       ? '이날 공연 밤에 1분 간격으로 저장한 주차 실측 기록이 있어요. 아래 버튼으로 그날의 출차 흐름과 출발 안내를 다시 볼 수 있어요.'
       : '이날의 주차 실측 기록은 없어요. 혼잡 예상 구간은 2024년 공연 밤의 출차 흐름을 참고했어요.';
   }
@@ -226,7 +236,10 @@
   q('.recent-retry').addEventListener('click', load);
   function refreshIfDue() {
     if (document.hidden) { pause(); renderStage(); return; }
-    if (loadDay && (loadDay !== kstDay(Date.now()) || Date.now() >= nextEnd)) load();
+    const recordsDue = recordsError
+      ? Date.now() - recordsAttempted >= MIN
+      : !recordDays || Date.now() - recordsChecked >= RECORDS_TTL;
+    if (loadDay && (loadDay !== kstDay(Date.now()) || Date.now() >= nextEnd || recordsDue)) load();
   }
   document.addEventListener('visibilitychange', refreshIfDue);
   setInterval(refreshIfDue, MIN);

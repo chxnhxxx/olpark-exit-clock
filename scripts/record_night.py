@@ -8,14 +8,12 @@ import datetime as dt
 import json
 import os
 import pathlib
-import re
 import subprocess
 import sys
 import time
 import urllib.request
 
 API = "https://www.ksponco.or.kr/online/main/parkingorsApi.do?apiKey=PARKING21803504"
-HALLS = re.compile(r"KSPO|체조|올림픽\s*홀|핸드볼|라이브\s*아레나|우리\s*금융|역도")
 RUN_MINUTES = int(os.environ.get("RUN_MINUTES", "40"))
 KST = dt.timezone(dt.timedelta(hours=9))
 END_OF_DAY = 24 * 60 + 30  # stop recording 00:30 the next morning
@@ -26,8 +24,8 @@ def now_kst():
 
 
 def record_day(t):
-    # 00:00-00:30 still belongs to the previous show night.
-    return (t - dt.timedelta(minutes=30)).date() if t.hour == 0 and t.minute < 30 else t.date()
+    # Runs delayed into the morning still belong to the previous show night.
+    return (t - dt.timedelta(days=1)).date() if t.hour < 13 else t.date()
 
 
 def minute_of(t, day):
@@ -41,8 +39,11 @@ def shows_on(day):
         for group in month:
             for ev in group if isinstance(group, list) else [group]:
                 if (ev.get("beginDt", "") <= iso <= ev.get("endDt", "") and ev.get("delYn") != "Y"
-                        and HALLS.search(ev.get("plc") or "") and ev.get("evtSeq") not in seen):
-                    seen.add(ev.get("evtSeq"))
+                        and str(ev.get("plc") or "").strip()):
+                    key = ev.get("evtSeq") or (ev.get("title"), ev.get("plc"))
+                    if key in seen:
+                        continue
+                    seen.add(key)
                     items.append({k: ev.get(k) for k in ("evtSeq", "title", "plc", "beginDt", "endDt", "tm", "ndTm", "ndTmSource")})
     return items
 
@@ -51,6 +52,8 @@ def fetch():
     req = urllib.request.Request(API, headers={"User-Agent": "olpark-exit-clock recorder"})
     with urllib.request.urlopen(req, timeout=20) as r:
         value = json.loads(r.read())[0]["parking_sum"]
+    if isinstance(value, bool) or not str(value).strip().isdigit():
+        raise ValueError("invalid parking count")
     return int(value)
 
 
@@ -92,13 +95,17 @@ def merge_and_push(day, shows, samples):
 def main():
     start = now_kst()
     day = record_day(start)
+    stop = dt.datetime.combine(day + dt.timedelta(days=1), dt.time(0, 31), KST)
+    if start >= stop:
+        print("기록 시간 밖: 공연 밤 기록은 다음 날 00:30분까지 수집합니다.")
+        return
     shows = shows_on(day)
     if not shows and os.environ.get("FORCE") != "1":
-        print(f"{day}: 올림픽공원 4개 공연장 공연 없음, 기록 안 함")
+        print(f"{day}: 올림픽공원 등록 공연 없음, 기록 안 함")
         return
     print(f"{day}: " + " / ".join(s["title"] for s in shows))
     samples, errors = {}, 0
-    deadline = start + dt.timedelta(minutes=RUN_MINUTES)
+    deadline = min(start + dt.timedelta(minutes=RUN_MINUTES), stop)
     while True:
         t = now_kst()
         m = minute_of(t, day)
@@ -113,6 +120,13 @@ def main():
     print(f"수집 {len(samples)}분, 실패 {errors}회")
     if samples:
         merge_and_push(day, shows, samples)
+    attempts = len(samples) + errors
+    summary = f"주차 기록 {day}: 수집 {len(samples)}분 / 실패 {errors}회"
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as report:
+            report.write(summary + "\n")
+    if not samples or (attempts and errors / attempts > 0.5):
+        raise RuntimeError("주차 수집 실패: 표본이 없거나 실패율이 50%를 초과했습니다.")
 
 
 if __name__ == "__main__":

@@ -18,20 +18,30 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 KEY = os.environ["KOPIS_SERVICE_KEY"]
-BASES = ("https://www.kopis.or.kr/openApi/restful/", "http://www.kopis.or.kr/openApi/restful/")
+BASE = "https://www.kopis.or.kr/openApi/restful/"
 HALLS = {"체조경기장": "KSPO DOME", "올림픽홀": "올림픽홀",
          "핸드볼경기장": "티켓링크 라이브 아레나", "우리금융아트홀": "우리금융아트홀"}
 FACILITY_QUERIES = ("올림픽공원",)
+
+
+class HTTPSRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if urllib.parse.urlparse(newurl).scheme != "https":
+            raise RuntimeError("KOPIS HTTPS 연결을 유지할 수 없습니다.")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+OPENER = urllib.request.build_opener(HTTPSRedirectHandler())
 
 
 def get(path, **params):
     query = urllib.parse.urlencode(dict(service=KEY, **params))
     last = ""
     for attempt in range(4):
-        base = BASES[attempt % len(BASES)]
+        base = BASE
         req = urllib.request.Request(base + path + "?" + query, headers={"User-Agent": "Mozilla/5.0 olpark-exit-clock"})
         try:
-            with urllib.request.urlopen(req, timeout=40) as r:
+            with OPENER.open(req, timeout=40) as r:
                 body = r.read()
             break
         except urllib.error.HTTPError as e:  # never echo the URL: it holds the key

@@ -173,38 +173,50 @@
   async function loadShows() {
     if (demo || loadingShows) return;
     const token = generation, timestamp = Date.now(), day = dayKey(timestamp);
-    const ym = day.slice(0, 7).replace('-', '');
+    const previousDay = dayKey(timestamp - 24 * 60 * MIN);
+    const months = [...new Set([previousDay, day].map(d => d.slice(0, 7).replace('-', '')))];
     loadingShows = true;
     lastScheduleTry = timestamp;
-    if (scheduleDay !== day) { liveShows = []; schedErr = false; }
     try {
-      let rows;
-      try { rows = (await window.parkSchedule.load()).months?.[ym]; }
+      let snapshot;
+      try { snapshot = await window.parkSchedule.load(); }
       catch { /* The public schedule API is the secondary source. */ }
-      if (!Array.isArray(rows)) rows = await fetchJSON(SCHEDULE, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nowYM: ym, plcCd: '' }),
-      });
-      if (!Array.isArray(rows)) throw Error('schedule format');
+      const rows = await Promise.all(months.map(async ym => {
+        const rows = snapshot?.months?.[ym];
+        if (Array.isArray(rows)) return rows;
+        const response = await fetchJSON(SCHEDULE, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nowYM: ym, plcCd: '' }),
+        });
+        if (!Array.isArray(response)) throw Error('schedule format');
+        return response;
+      }));
       if (generation !== token) return;
-      liveShows = showsForDay(rows, day);
+      liveShows = relevantShows([...showsForDay(rows, previousDay), ...showsForDay(rows, day)], timestamp);
       scheduleDay = day;
       schedErr = false;
       save('olpark_shows', { day, shows: liveShows });
     } catch {
       if (generation !== token) return;
       const record = cached('olpark_shows', null);
-      if (record?.day === day && Array.isArray(record.shows)) {
+      if ([day, previousDay].includes(record?.day) && Array.isArray(record.shows)) {
         // Legacy caches inferred a duration when none was published. Surface that uncertainty.
         liveShows = record.shows.filter(show => show?.title && show.plc).map(show => ({
-          ...show, day, endEstimated: show.endEstimated ?? Boolean(show.end),
+          ...show, day: show.day || record.day, endEstimated: show.endEstimated ?? Boolean(show.end),
         }));
-        scheduleDay = day;
+        liveShows = relevantShows(liveShows, timestamp);
+        scheduleDay = record.day;
       }
       schedErr = true;
     } finally {
       if (generation === token) { loadingShows = false; emit(); }
     }
+  }
+
+  function relevantShows(shows, time) {
+    const day = dayKey(time);
+    return shows.filter(show => (show.day || (show.start && dayKey(show.start))) === day ||
+      (show.end && show.end + 110 * MIN >= time && show.start <= time));
   }
 
   async function poll() {
@@ -231,7 +243,7 @@
   // A long gap starts a new observation window. It cannot provide a five-minute change.
   function continuous(samples) {
     for (let i = samples.length - 1; i > 0; --i) {
-      if (samples[i][0] - samples[i - 1][0] > 6 * MIN) return samples.slice(i);
+      if (samples[i][0] - samples[i - 1][0] >= 6 * MIN) return samples.slice(i);
     }
     return samples;
   }
@@ -273,9 +285,16 @@
   }
   function rates(samples, end) {
     if (samples.length < 2) return [];
-    const changes = samples.filter((s, i) => i === 0 || s[1] !== samples[i - 1][1] || i === samples.length - 1);
+    const changes = samples.filter((s, i) => {
+      const previous = samples[i - 1], next = samples[i + 1];
+      return !previous || !next || s[1] !== previous[1] ||
+        s[0] - previous[0] >= 6 * MIN || next[0] - s[0] >= 6 * MIN;
+    });
+    const gaps = samples.slice(1).flatMap((s, i) =>
+      s[0] - samples[i][0] >= 6 * MIN ? [[samples[i][0], s[0]]] : []);
     function value(time) {
       if (time < changes[0][0] || time > changes.at(-1)[0]) return null;
+      if (gaps.some(([start, end]) => time > start && time < end)) return null;
       const i = changes.findIndex(s => s[0] >= time);
       if (i <= 0) return changes[0][1];
       const a = changes[i - 1], b = changes[i];
@@ -298,9 +317,6 @@
     if (!demo && ((lastOk && t - lastOk > 5 * MIN) || (!lastOk && liveErr)))
       return result('stale', '연결 지연', '주차 정보를 기다리고 있어요', '', '', '', '기관 연결을 다시 시도하거나 공연 기록을 볼 수 있어요.');
     const noShowDay = !demo && !shows.length && scheduleDay === dayKey(t);
-    if (d === null && noShowDay)
-      return result('calm', '공연 없음', '오늘은 공원 안 공연이 없어요', '추천 출발', '지금', '',
-        '올림픽공원 공연장 일정이 없는 날이에요. 주차 흐름은 계속 지켜보고, 대량 출차가 생기면 알려 드려요.', t);
     if (d === null) {
       const left = Math.max(1, Math.ceil(5 - (samples.length ? t - samples[0][0] : 0) / MIN));
       return result('wait', '관측 중', '출차 흐름을 확인하고 있어요', '', '', '',
@@ -342,10 +358,10 @@
       .sort((a, b) => a.start - b.start)[0];
     if (!selectedShow && upcoming)
       return result('show', '공연 전', '오늘 공연이 아직 시작 전이에요', '첫 공연 시작', clock(upcoming.start), '',
-        '공연이 끝나기 전에는 출차가 몰리지 않아요. 종료 무렵부터 출차 흐름을 보고 출발 시각을 안내해요.');
+        '현재 대량 출차 신호가 없어요. 공연 중에도 주차 흐름을 계속 확인해요.');
     if (noShowDay)
-      return result('calm', '공연 없음', '오늘은 공원 안 공연이 없어요', '추천 출발', '지금', '',
-        '올림픽공원 공연장 일정이 없는 날이에요. 주차 흐름은 계속 지켜보고, 대량 출차가 생기면 알려 드려요.', t);
+      return result('calm', '평소 수준', '지금 출발하기 좋아요', '추천 출발', '지금', '',
+        '오늘 등록된 공연이 없고, 최근 5분간 대량 출차 신호도 없어요. 주차 흐름을 계속 확인해요.', t);
     return result('calm', '평소 수준', '지금 출발하기 좋아요', '추천 출발', '지금', '출차 집중 신호가 없어요',
       '최근 5분간 주차 대수 변화가 대량 출차 기준에 못 미쳤어요.', t);
   }
@@ -371,18 +387,20 @@
   }
   function emit() {
     const time = demo ? source.base + minute * MIN : Date.now();
-    const samples = demo ? archiveSamples(minute) : continuous(liveSamples);
-    const day = dayKey(time), shows = demo ? source.shows : scheduleDay === day ? liveShows : [];
+    const history = demo ? archiveSamples(minute) : liveSamples;
+    const samples = continuous(history);
+    const day = dayKey(time), shows = demo ? source.shows : relevantShows(liveShows, time);
     const scope = 'olpark_show_selection:' + (demo ? 'replay:' : 'live:') + day;
     if (scope !== selectionScope) {
       selectionScope = scope;
-      selectedKey = cached(scope, null);
+      const continued = shows.some(show => showKey(show) === selectedKey) ? selectedKey : null;
+      selectedKey = cached(scope, continued);
     }
     const selectedShow = shows.find(show => showKey(show) === selectedKey) || null;
     const end = samples.at(-1)?.[0], fresh = end && time - end <= 5 * MIN;
     const drop = fresh ? dropAt(samples, end) : null;
     const onset = samples.find(s => time - s[0] <= 90 * MIN && dropAt(samples, s[0]) >= SURGE)?.[0] ?? null;
-    const series = end ? rates(samples, end) : [];
+    const series = end ? rates(history, time) : [];
     const decision = decide(samples, time, shows, selectedShow, drop, onset);
     latestState = { demo, playing, time, minute: demo ? minute : null,
       record: { id: source.id, label: source.label, first: source.first, last: source.last, steps: source.steps }, lastOk: demo ? time : lastOk,
