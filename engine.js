@@ -8,9 +8,8 @@
   const SURGE = 60;
   const CALM = 25;
   const DURATION = 45;
-  // Measured show night used by default for the 기록 체험 (records/<day>.json, saved by record.yml).
-  // null keeps the July 2024 archive. ?record=YYYY-MM-DD picks any saved night.
-  const DEFAULT_RECORD = null;
+  const RECONSTRUCTED_RECORD = '2025-12-06';
+  const RECORDS_MAIN = 'https://raw.githubusercontent.com/chxnhxxx/olpark-exit-clock/main/records/';
   const API = 'https://www.ksponco.or.kr/online/main/parkingorsApi.do?apiKey=PARKING21803504';
   const SCHEDULE = 'https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoListAjax.es';
   const archive = window.PATTERN_2024.d20.v;
@@ -23,7 +22,7 @@
   const clock = time => new Date(time + SEOUL).toISOString().slice(11, 16);
   const dayKey = time => new Date(time + SEOUL).toISOString().slice(0, 10);
   const ARCHIVE_SOURCE = {
-    id: '2024-07-20', label: '2024.07.20(토) 실제 기록', base: BASE, first: 300, last: 450, start: 380,
+    id: '2024-07-20', kind: 'archive', label: '2024.07.20(토) 입출차 재현', base: BASE, first: 300, last: 450, start: 380,
     steps: [300, 380, 420], shows: recordedShows,
     samples: Array.from({ length: 451 }, (_, m) => {
       const i = Math.floor(m / 5), mix = m % 5 / 5;
@@ -67,9 +66,19 @@
       if (minute > 59 || h > 23 || (period && (h < 1 || h > 12))) continue;
       if (period) h = h % 12 + (period === '오후' || period === 'pm' ? 12 : 0);
       else if (h > 0 && h < 9 && m[0].includes('시')) h += 12;
-      times.push(h * 60 + minute);
+      times.push({ minute: h * 60 + minute, index: m.index, tail: m.index + m[0].length });
     }
-    return times;
+    const slots = [];
+    for (let i = 0; i < times.length; i++) {
+      const a = times[i], b = times[i + 1];
+      const finish = b && b.minute + (b.minute < a.minute ? 1440 : 0);
+      if (b && finish > a.minute && finish - a.minute <= 12 * 60 &&
+          /^\s*[~～–—-]\s*$/.test(text.slice(a.tail, b.index))) {
+        slots.push({ start: a.minute, end: finish });
+        i++;
+      } else slots.push({ start: a.minute, end: null });
+    }
+    return slots;
   }
 
   function weeklySlots(text, day) {
@@ -99,7 +108,7 @@
   function sessionMinutes(item, day) {
     const text = String(item.tm || '').normalize('NFKC').trim();
     if (!text) return [null];
-    const pattern = /(?<!\d)(?:(\d{4})\s*(?:년\s*|[.\/-]\s*))?(\d{1,2})\s*(?:월\s*|[.\/]\s*)(\d{1,2})(?!\d)\s*일?\.?\s*(?:\(\s*(?:[월화수목금토일](?:요일)?|[A-Z]{3})?\s*\)|(?:[월화수목금토일](?:요일)?|MON|TUE|WED|THU|FRI|SAT|SUN)(?=\s|\d))?/gi;
+    const pattern = /(?<![\d:])(?:(\d{4})\s*(?:년\s*|[.\/-]\s*))?(\d{1,2})\s*(?:월\s*|[.\/]\s*)(\d{1,2})(?![\d:])\s*일?\.?\s*(?:\(\s*(?:[월화수목금토일](?:요일)?|[A-Z]{3})?\s*\)|(?:[월화수목금토일](?:요일)?|MON|TUE|WED|THU|FRI|SAT|SUN)(?=\s|\d))?/gi;
     // Expand a range whose second date omits its month.
     const normalized = text.replace(/(\d{1,2})월\s*(\d{1,2})일?\s*([~～–])\s*(\d{1,2})일/g, '$1월 $2일$3$1월 $4일');
     const anchors = [...normalized.matchAll(pattern)];
@@ -150,10 +159,15 @@
       // No published running time: assume a typical concert length so the night can still be guided.
       const minutes = published || (/KSPO|DOME|체조/i.test(item.plc) ? 150 : 120);
       for (const slot of sessionMinutes(item, day)) {
-        const start = slot === null ? null : midnight + slot * MIN;
+        const start = slot === null ? null : midnight + slot.start * MIN;
+        const explicitEnd = slot?.end === null || slot?.end === undefined ? null : midnight + slot.end * MIN;
+        const endBasis = explicitEnd ? '공식 일정의 종료 시각' : !published ? '일반 러닝타임 추정' :
+          /^NOL티켓/.test(item.ndTmSource || '') ? 'NOL티켓의 공연 소요시간' :
+          /^KOPIS/.test(item.ndTmSource || '') ? '공연예술통합전산망의 공연 소요시간' : '공식 일정의 공연 소요시간';
         const show = { evtSeq: item.evtSeq ?? null, title: item.title.normalize('NFKC').replace(/\s+/g, ' ').trim(), plc: item.plc.trim(),
-          genre: item.cultureGenre || '', day, start, end: start !== null && minutes ? start + minutes * MIN : null,
-          endEstimated: !published || /약|예상|내외/.test(rawDuration), endDefault: !published, tm: item.tm || '', ndTm: rawDuration };
+          genre: item.cultureGenre || '', day, start, end: explicitEnd ?? (start === null ? null : start + minutes * MIN),
+          endBasis, endEstimated: !explicitEnd && (!published || /약|예상|내외/.test(rawDuration)),
+          endDefault: !explicitEnd && !published, tm: item.tm || '', ndTm: rawDuration };
         shows.set(showKey(show), show);
       }
     }
@@ -162,13 +176,14 @@
   }
 
   async function fetchJSON(url, options = {}) {
+    const { timeout = 9000, ...request } = options;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 9000);
+    const timer = setTimeout(() => controller.abort(), timeout);
     try {
-      const response = await fetch(url, { cache: 'no-store', ...options, signal: controller.signal });
+      const response = await fetch(url, { cache: 'no-store', ...request, signal: controller.signal });
       if (!response.ok) throw Error(String(response.status));
       return await response.json();
-    } finally { clearTimeout(timeout); }
+    } finally { clearTimeout(timer); }
   }
   async function loadShows() {
     if (demo || loadingShows) return;
@@ -282,25 +297,41 @@
     const last = points.at(-1).minute;
     return { points, longest, last, recommendation, base, shows };
   }
+  async function loadRecordIndex() {
+    const results = await Promise.allSettled([
+      fetchJSON(RECORDS_MAIN + 'index.json', { timeout: 4000 }),
+      fetchJSON('records/index.json', { timeout: 4000 }),
+    ]);
+    const index = results.find(result => result.status === 'fulfilled' && Array.isArray(result.value?.days));
+    if (!index) throw Error('record index unavailable');
+    return index.value;
+  }
   async function loadRecord(day) {
     if (!/^\d{4}-\d\d-\d\d$/.test(day || '')) return null;
-    const doc = await fetchJSON('records/' + day + '.json');
+    const file = day + '.json';
+    const doc = day === RECONSTRUCTED_RECORD ? await fetchJSON('records/' + file)
+      : await fetchJSON(RECORDS_MAIN + file, { timeout: 4000 }).catch(() => fetchJSON('records/' + file));
+    const kind = doc.kind === 'reconstruction' ? 'reconstruction' : 'measured';
     const base = Date.parse(day + 'T00:00:00+09:00');
-    const samples = Array.from(new Map((doc.samples || []).filter(s => Array.isArray(s) && Number.isInteger(s[0]) && s[0] >= 780 && s[0] <= 1470 && Number.isInteger(s[1]) && s[1] >= 0)).entries())
+    const samples = Array.from(new Map((doc.samples || []).filter(s => Array.isArray(s) && Number.isInteger(s[0]) && s[0] >= 780 && s[0] <= 1470 && Number.isSafeInteger(s[1]) && (kind === 'reconstruction' || s[1] >= 0))).entries())
       .sort((a, b) => a[0] - b[0]).map(([m, v]) => [base + m * MIN, v]);
     if (samples.length < 30) return null;
     const minuteOf = t => Math.round((t - base) / MIN);
-    let first = minuteOf(samples[0][0]), last = minuteOf(samples.at(-1)[0]);
-    // The first surge of the night anchors a 2.5-hour window around the exit rush.
-    const onsetSample = samples.find(s => s[0] >= base + first * MIN && dropAt(samples, s[0]) >= SURGE);
+    const first = minuteOf(samples[0][0]), last = minuteOf(samples.at(-1)[0]);
+    const onsetSample = samples.find(s => dropAt(samples, s[0]) >= SURGE);
     const onset = onsetSample ? minuteOf(onsetSample[0]) : null;
     const shows = showsForDay(doc.shows || [], day);
+    const review = reviewNight(samples, base, shows);
+    const lastEnd = Math.max(0, ...shows.map(show => show.end ? minuteOf(show.end) : 0));
     const clamp = m => Math.max(first, Math.min(last, m));
     const steps = onset === null ? [first, clamp(Math.round((first + last) / 2)), last]
-      : [clamp(onset - 30), clamp(onset + 10), clamp(onset + DURATION)];
+      : [clamp(lastEnd ? Math.min(lastEnd - 10, onset - 1) : onset - 30), clamp(onset),
+        clamp(review.recommendation ?? onset + DURATION)];
+    const labels = onset === null ? ['처음', '중간', '마지막'] :
+      [lastEnd > steps[0] ? '종료 전' : '감지 전', '출차 집중', review.recommendation === null ? '이후' : '첫 권장'];
     const [y, m, d] = day.split('-');
-    return { id: day, label: `${y}.${m}.${d}(${DAYS[new Date(base + 12 * 3600000).getUTCDay()]}) 실측 기록`,
-      base, first, last, start: steps[1], steps, samples, shows, review: reviewNight(samples, base, shows) };
+    return { id: day, kind, label: `${y}.${m}.${d}(${DAYS[new Date(base + 12 * 3600000).getUTCDay()]}) ${kind === 'reconstruction' ? '입출차 재현 · 부분 자료' : '실측 기록'}`,
+      base, first, last, start: onset === null ? steps[1] : clamp(onset + 10), steps, labels, samples, shows, review };
   }
   function rates(samples, end) {
     if (samples.length < 2) return [];
@@ -373,7 +404,8 @@
     const guessed = (selectedShow ? [selectedShow] : shows).some(show => show.end === end && show.endDefault);
     if (end && t < end)
       return result('show', '공연 중', '공연이 진행 중이에요', '예상 종료', (guessed ? '약 ' : '') + clock(end), '',
-        guessed ? '러닝타임이 공개되지 않아 보통 공연 길이로 종료 시각을 추정했어요. 실제 출차 흐름을 보고 바로 고쳐 안내해요.' : '종료 시각은 공연 일정과 러닝타임을 기준으로 계산해요.');
+        guessed ? '러닝타임이 공개되지 않아 보통 공연 길이로 종료 시각을 추정했어요. 실제 출차 흐름을 보고 바로 고쳐 안내해요.' :
+          `${(selectedShow || shows.find(show => show.end === end))?.endBasis || '공연 일정'}을 기준으로 안내해요.`);
     if (end && t <= end + 110 * MIN)
       return result('soon', '공연 종료 후', '곧 출차가 몰릴 수 있어요', '추천 출발', '지금', '공연 종료 후 집중 구간', '아직 대량 출차 신호가 없어요. 종료 후 흐름이 빠르게 바뀔 수 있어요.', t);
     const upcoming = shows.filter(show => show.start && show.start > t && (show.start - t < 6 * 60 * MIN || dayKey(show.start) === dayKey(t)))
@@ -428,11 +460,12 @@
     const series = end ? rates(history, demo ? time : end) : [];
     const decision = decide(samples, time, shows, selectedShow, drop, onset);
     latestState = { demo, playing, time, minute: demo ? minute : null,
-      review: demo ? source.review : null, record: { id: source.id, label: source.label, first: source.first, last: source.last, steps: source.steps }, lastOk: demo ? time : lastOk,
+      review: demo ? source.review : null, record: { id: source.id, kind: source.kind, label: source.label,
+        first: source.first, last: source.last, steps: source.steps, labels: source.labels }, lastOk: demo ? time : lastOk,
       schedulePending: !demo && scheduleDay !== day && !schedErr, liveErr: !demo && liveErr, schedErr: !demo && schedErr,
       shows, selectedShow, decision, series,
       forecast: predict(series, onset, decision, time), rate: fresh ? series.at(-1)?.r ?? null : null,
-      drop, observedChange, observedMinutes, total: samples.at(-1)?.[1] ?? null };
+      drop, observedChange, observedMinutes, total: demo && source.kind === 'reconstruction' ? null : samples.at(-1)?.[1] ?? null };
     listeners.forEach(fn => fn(latestState));
   }
   function stopPlayer() { clearInterval(player); playing = false; }
@@ -453,9 +486,26 @@
       if (token !== generation) return;
       source = rec || ARCHIVE_SOURCE;
       switchMode(true);
-      minute = position(value);
+      minute = position(value === undefined || rec ? value : value - 900);
       emit();
     });
+  }
+  async function replayLatest(value) {
+    switchMode(true);
+    const token = generation;
+    const index = await loadRecordIndex().catch(() => null);
+    const dates = Array.isArray(index?.days) ? index.days.filter(entry => entry?.count >= 30 &&
+      /^\d{4}-\d\d-\d\d$/.test(entry.day) && entry.day > RECONSTRUCTED_RECORD).map(entry => entry.day).sort().reverse() : [];
+    let record = null;
+    for (const day of [...new Set([...dates, RECONSTRUCTED_RECORD])]) {
+      if (token !== generation) return;
+      record = await loadRecord(day).catch(() => null);
+      if (record) break;
+    }
+    if (token !== generation) return;
+    source = record || ARCHIVE_SOURCE;
+    minute = position(value === undefined || record ? value : value - 900);
+    emit();
   }
   function seek(value) { if (demo) { stopPlayer(); minute = position(value); emit(); } }
   function togglePlay() {
@@ -485,11 +535,10 @@
     const q = new URLSearchParams(location.search);
     if (q.has('demo')) {
       const at = /^(\d{1,2}):([0-5]\d)$/.exec(q.get('at') || '');
-      const day = q.get('record') || DEFAULT_RECORD;
-      if (day && day !== ARCHIVE_SOURCE.id) {
-        const at2 = at ? Number(at[1]) * 60 + Number(at[2]) : undefined;
-        replay(at2, day);
-      } else replay(at ? Number(at[1]) * 60 + Number(at[2]) - 900 : 380);
+      const day = q.get('record');
+      const value = at ? Number(at[1]) * 60 + Number(at[2]) : undefined;
+      if (day) replay(value !== undefined && day === ARCHIVE_SOURCE.id ? value - 900 : value, day);
+      else replayLatest(value);
     } else live();
     setInterval(() => {
       if (demo) return;
@@ -505,6 +554,5 @@
     if (latestState) fn(latestState);
     return () => listeners.delete(fn);
   }
-  function recordDefault() { return DEFAULT_RECORD; }
-  window.exitClock = { subscribe, start, live, replay, recordDefault, seek, togglePlay, refresh, selectShow, showKey, showsForDay };
+  window.exitClock = { subscribe, start, live, replay, replayLatest, seek, togglePlay, refresh, selectShow, showKey, showsForDay, loadRecordIndex };
 })();

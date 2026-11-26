@@ -9,18 +9,27 @@ const archive = fs.readFileSync('data2024.js', 'utf8');
 async function settle() {
   for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve));
 }
-async function start({ time, seed = [], rows = [], parking = 1000, record }) {
+async function start({ time, seed = [], rows = [], parking = 1000, record, records = {}, recordIndex, mainRecords = {}, search = '' }) {
   let now = Date.parse(time), state;
   const intervals = [], storage = new Map([['olpark_samples', JSON.stringify(seed.map(([m, v]) => [now + m * MIN, v]))]]);
   class Clock extends Date { static now() { return now; } }
   const box = {
     window: { addEventListener() {} }, Date: Clock, URLSearchParams, AbortController,
-    location: { search: '' }, document: { addEventListener() {} },
+    location: { search }, document: { addEventListener() {} },
     localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v) },
     setInterval: (fn, ms) => { intervals.push({ fn, ms }); return intervals.length; },
     clearInterval() {}, setTimeout, clearTimeout,
     fetch: async url => {
-      if (url.startsWith('records/')) return { ok: true, json: async () => record };
+      const main = 'https://raw.githubusercontent.com/chxnhxxx/olpark-exit-clock/main/records/';
+      if (url.startsWith(main)) {
+        const doc = mainRecords[url.slice(main.length)];
+        return { ok: Boolean(doc), json: async () => doc };
+      }
+      if (url === 'records/index.json') return { ok: Boolean(recordIndex), json: async () => recordIndex };
+      if (url.startsWith('records/')) {
+        const doc = records[url.slice(8, -5)] ?? record;
+        return { ok: Boolean(doc), json: async () => doc };
+      }
       if (parking === null) throw Error('offline');
       return { ok: true, json: async () => [{ parking_sum: parking }] };
     },
@@ -110,5 +119,31 @@ function show(day, tm, ndTm = '120분') {
   assert(gap.length > 0);
   assert(gap.every(p => p.r === null));
   assert.equal(replay.state().rate, 0);
+  const reconstructed = { kind: 'reconstruction', samples: Array.from({length: 45}, (_, i) => [1200 + i, -14 * i]) };
+  const latest = await start({ time: '2026-11-28T12:00:00+09:00', search: '?demo&at=20:10',
+    recordIndex: {days: [{day: '2026-11-27', count: 40}]}, records: {'2025-12-06': reconstructed} });
+  assert.equal(latest.state().record.id, '2025-12-06');
+  assert.equal(latest.state().record.kind, 'reconstruction');
+  assert.equal(latest.state().total, null);
+  assert.equal(latest.state().minute, 1210);
+  assert.equal(latest.state().drop, 70);
+  const measured = await start({ time: '2026-11-28T12:00:00+09:00', search: '?demo',
+    recordIndex: {days: [{day: '2026-11-27', count: 41}, {day: '2026-11-25', count: 42}]},
+    records: {'2026-11-27': {samples}, '2025-12-06': reconstructed} });
+  assert.equal(measured.state().record.id, '2026-11-27');
+  assert.equal(measured.state().record.kind, 'measured');
+  const fromMain = await start({ time: '2026-11-28T12:00:00+09:00', search: '?demo', recordIndex: {days: []},
+    mainRecords: { 'index.json': {days: [{day: '2026-11-27', count: 41}]}, '2026-11-27.json': {samples} } });
+  assert.equal(fromMain.state().record.id, '2026-11-27');
+  assert.equal(fromMain.state().record.kind, 'measured');
+  const old = await start({ time: '2026-11-28T12:00:00+09:00', search: '?demo&record=2024-07-20&at=22:00' });
+  assert.equal(old.state().record.id, '2024-07-20');
+  assert.equal(old.state().minute, 420);
+  const explicit = measured.api.showsForDay([show('2026-11-28', '18:00~20:00 / 22:00–01:15', '')], '2026-11-28');
+  assert.equal(explicit.length, 2);
+  assert.equal(explicit[0].end, Date.parse('2026-11-28T20:00:00+09:00'));
+  assert.equal(explicit[1].end, Date.parse('2026-11-29T01:15:00+09:00'));
+  assert.equal(explicit[1].endDefault, false);
+  assert.equal(explicit[1].endBasis, '공식 일정의 종료 시각');
   console.log('PASS observation, 6-minute reset, 5-minute delta, month/year midnight, selection, offline, replay gaps');
 })().catch(error => { console.error(error); process.exitCode = 1; });

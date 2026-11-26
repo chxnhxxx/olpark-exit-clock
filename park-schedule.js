@@ -10,7 +10,7 @@
   async function load() {
     if (cached && Date.now() - checked < 15 * 60000) return cached;
     if (!pending) pending = (async () => {
-      const urls = ['schedule.json'];
+      const urls = ['schedule.json', 'https://raw.githubusercontent.com/chxnhxxx/olpark-exit-clock/main/schedule.json'];
       if (location.hostname !== 'chxnhxxx.github.io') urls.push('https://chxnhxxx.github.io/olpark-exit-clock/schedule.json');
       const results = await Promise.allSettled(urls.map(snapshot));
       const sources = results.filter(r=>r.status==='fulfilled').map(r=>r.value).sort((a,b)=>Date.parse(a.updated)-Date.parse(b.updated));

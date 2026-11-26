@@ -51,13 +51,12 @@
   function slot(show) {
     return show.start ? time(show.start) + (show.end ? ' – ' + (show.endDefault ? '약 ' + time(show.end) + ' 종료 (추정)' : time(show.end) + ' 예정') : ' 시작 · 종료 미정') : '시작·종료 시각 미정';
   }
-  function windowText(show) {
-    return show.end ? time(show.end + 30 * minute) + ' – ' + time(show.end + 90 * minute) : '종료 시각 확인 후 안내';
-  }
   function addWindow(box, show) {
     const row = el('div', 'window-row');
+    const reference = window.exitProfile.reference(show);
     row.append(el('strong', '', show.title), el('span', '', venueName(show.plc) + ' · ' + slot(show)),
-      el('span', 'window-forecast', (show.end ? '혼잡 예상 ' : '') + windowText(show)));
+      el('span', 'window-forecast', reference.label));
+    if (reference.detail) row.append(el('span', '', reference.detail));
     box.append(row);
   }
   function renderShows(s) {
@@ -112,15 +111,18 @@
     }
     if (selected) {
       const details = el('div','visit-detail');
-      details.append(el('span','detail-caption','내 회차 종료 후 혼잡 예상'), el('strong','',windowText(selected)));
-      let text = selected.end ? '종료 예정 시각에서 30~90분 뒤예요.' : '공식 일정에 종료 시각이나 공연 시간이 필요해요.';
+      const reference = window.exitProfile.reference(selected);
+      details.append(el('span','detail-caption','과거 출차 참고 시간'), el('strong','',reference.label));
       const overlaps = shows.filter(other => other.end && selected.end && clock.showKey(other) !== clock.showKey(selected)
         && Math.abs(other.end - selected.end) < 60 * minute);
+      if (selected.end && selected.endBasis && !selected.endDefault) {
+        details.append(el('p', '', '종료 예정 근거 · ' + selected.endBasis));
+      }
+      if (reference.detail) details.append(el('p','',reference.detail));
       if (overlaps.length) {
         const others = [...new Set(overlaps.map(show => venueName(show.plc)))].join(' · ');
-        text = others + '의 다른 회차와 혼잡 예상 시간이 겹쳐요.';
+        details.append(el('p','',others + '의 다른 회차 종료 시각도 가까워요.'));
       }
-      details.append(el('p','',text));
       list.append(details);
       if (/^\d+$/.test(String(selected.evtSeq || ''))) {
         const link = el('a','text-action','공식 공연 상세 보기 ↗');
@@ -155,6 +157,7 @@
   function changeUrl(demo) {
     const url = new URL(location.href);
     url.searchParams.delete('at');
+    url.searchParams.delete('record');
     if (demo) url.searchParams.set('demo', '1');
     else url.searchParams.delete('demo');
     try { history.replaceState(null, '', url); } catch { /* Direct file previews may limit history. */ }
@@ -205,7 +208,7 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) keepAwake(); });
 
   let displayedReview;
-  function renderReview(review) {
+  function renderReview(review, reconstructed) {
     if (displayedReview === review) return;
     displayedReview = review;
     $('nightReview').hidden = !review;
@@ -215,8 +218,13 @@
     const {points, longest, last, recommendation, shows, base} = review;
     const stamp = m => (m >= 1440 ? '다음 날 ' : '') + [Math.floor(m / 60) % 24, m % 60].map(n => String(n).padStart(2, '0')).join(':');
     const add = text => box.append(el('p', 'chart-note', text));
-    add('동2·남2·북2문 주차장 합계 · 수집 ' + points.length + ' / 예정 691분 · 마지막 관측 ' + stamp(last));
-    add('13:00부터 마지막 관측까지 가장 긴 누락 ' + longest + '분 · 수집 예정 종료 다음 날 00:30');
+    const end = reconstructed ? last : 1470;
+    if (reconstructed) {
+      add('부분 수집한 입출차 기록을 1분 단위로 재현했어요. 시간대별로 일부 차량이 빠졌을 수 있어요.');
+    } else {
+      add('동2·남2·북2문 주차장 합계 · 수집 ' + points.length + ' / 예정 691분 · 마지막 관측 ' + stamp(last));
+      add('13:00부터 마지막 관측까지 가장 긴 누락 ' + longest + '분 · 수집 예정 종료 다음 날 00:30');
+    }
     const at = m => points.find(p => p.minute === m)?.drop;
     const measure = m => at(m) == null ? '관측 부족' : at(m) + '대';
     const markers = [];
@@ -229,8 +237,8 @@
     const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('viewBox','0 0 600 130');
     svg.setAttribute('role','img');
-    svg.setAttribute('aria-label','13시부터 다음 날 0시 30분까지의 5분 순감소. 세로선은 공연 일정과 첫 권장 시각이며 빈 구간은 관측 부족입니다.');
-    const x = m => 6 + (m-780)/690*588;
+    svg.setAttribute('aria-label','13시부터 ' + stamp(end) + '까지 5분 순감소. 세로선은 공연 일정과 첫 권장 시각입니다.');
+    const x = m => 6 + (m-780)/Math.max(1,end-780)*588;
     const valid = points.filter(p => p.drop !== null);
     const low = Math.min(0,...valid.map(p => p.drop)), high = Math.max(60,...valid.map(p => p.drop));
     const y = v => 115 - (v-low)/(high-low)*105;
@@ -248,11 +256,11 @@
       prev = p.minute;
     }
     path(line,'var(--green)',2);
-    for (const marker of markers.filter(m => m.minute >= 780 && m.minute <= 1470)) {
+    for (const marker of markers.filter(m => m.minute >= 780 && m.minute <= end)) {
       path('M'+x(marker.minute)+' 5 V120',marker.minute === recommendation ? 'var(--green)' : 'var(--muted)',1.5,'2 3');
     }
     box.append(svg);
-    add('13:00 → 다음 날 00:30 · 실선은 5분 순감소, 가로 점선은 혼잡 기준 60대예요. 아래 시각을 누르면 해당 장면으로 이동해요.');
+    add('13:00 → ' + stamp(end) + ' · 실선은 5분 순감소, 가로 점선은 혼잡 기준 60대예요. 아래 시각을 누르면 해당 장면으로 이동해요.');
     const timeline = document.createElement('ol');
     for (const marker of markers.sort((a,b) => a.minute-b.minute)) {
       const li = document.createElement('li');
@@ -270,7 +278,8 @@
     add('권장 시각은 해당 분까지의 기록으로 재현했어요. 실제 차량별 대기시간은 측정하지 않아요.');
   }
   function render(s) {
-    renderReview(s.review);
+    const reconstructed = s.demo && s.record.kind === 'reconstruction';
+    renderReview(s.review, reconstructed);
     const previous = current, d = s.decision;
     current = s;
     syncVenue(s);
@@ -286,7 +295,8 @@
     $('hero').dataset.tone = d.tone;
     $('advice').textContent = d.head;
     $('statusText').textContent = d.chip;
-    $('sourceText').textContent = (s.demo ? (s.record.id.startsWith('2024') ? '공연 기록 재현' : '공연 밤 실측 재생') : '실시간 주차현황') + ' · 세 주차장 합산';
+    $('sourceText').textContent = (s.demo ? (s.record.kind === 'measured' ? '공연 밤 실측 재생' :
+      reconstructed ? '입출차 재현(부분 자료)' : '공연 기록 재현') : '실시간 주차현황') + ' · 세 주차장 합산';
     $('dateText').textContent = dateFormat.format(s.time);
     const hasTime = !!d.big;
     $('timeLabel').textContent = hasTime ? (s.selectedShow && d.lab === '예상 종료' ? '내 공연 종료 예정' : d.lab) : '예상 출발 시각';
@@ -312,7 +322,10 @@
         const ticks = document.querySelectorAll('.replay .ticks span');
         ticks[0].textContent = time(s.time - (s.minute - rec.first) * 60000) + '부터';
         ticks[1].textContent = time(s.time + (rec.last - s.minute) * 60000) + '까지';
-        document.querySelectorAll('[data-minute]').forEach((btn, i) => { btn.dataset.minute = rec.steps[i]; });
+        document.querySelectorAll('[data-minute]').forEach((btn, i) => {
+          btn.dataset.minute = rec.steps[i];
+          btn.textContent = rec.labels?.[i] || ['공연 중', '혼잡', '출발 권장'][i];
+        });
       }
       $('seek').value = s.minute;
       $('seek').setAttribute('aria-valuetext', time(s.time));
@@ -329,13 +342,18 @@
     $('changeUnit').textContent = change === null ? '관측 중' : change === 0 ? '대 변화' : change < 0 ? '대 감소' : '대 증가';
     $('pastLabel').textContent = s.demo ? '기록 재현' : '관측값';
     $('forecastLegend').hidden = !s.forecast.length;
-    $('chartNote').textContent = '동2·남2·북2문 합계 · 입차와 출차가 함께 반영돼요. 그래프 단위는 대/분이에요.' + (s.forecast.length ? ' 점선은 예상값이에요.' : '');
+    $('chartNote').textContent = (reconstructed ? '받은 입출차 기록의 변화량을 재현했어요. 그래프 단위는 대/분이에요.' :
+      '동2·남2·북2문 합계 · 입차와 출차가 함께 반영돼요. 그래프 단위는 대/분이에요.') + (s.forecast.length ? ' 점선은 예상값이에요.' : '');
     window.renderExitChart({ element: $('flowChart'), series: s.series, forecast: s.forecast, now: s.time, go: d.go, demo: s.demo });
     if (previous && previous.decision.tone !== d.tone) $('announce').textContent = d.head + '. ' + d.lab + ' ' + d.big;
   }
 
-  $('liveMode').onclick = () => { if (current?.demo) { changeUrl(false); clock.live(); } };
-  $('demoMode').onclick = () => { if (!current?.demo) { changeUrl(true); clock.replay(undefined, clock.recordDefault() || '2024-07-20'); } };
+  $('liveMode').onclick = () => {
+    if (current?.demo || new URLSearchParams(location.search).has('demo')) { changeUrl(false); clock.live(); }
+  };
+  $('demoMode').onclick = () => {
+    if (!current?.demo && !new URLSearchParams(location.search).has('demo')) { changeUrl(true); clock.replayLatest(); }
+  };
   $('retry').onclick = clock.refresh;
   $('play').onclick = clock.togglePlay;
   $('seek').oninput = event => clock.seek(+event.target.value);
@@ -377,4 +395,8 @@
   document.getElementById('scheduleRetry').onclick = clock.refresh;
   clock.subscribe(render);
   clock.start();
+  window.exitProfile.ready.then(() => {
+    scheduleKey = null;
+    if (current) renderShows(current);
+  });
 })();

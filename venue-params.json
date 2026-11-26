@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "dataMonth": "2024-07",
+  "park": {
+    "fromMinute": 68,
+    "toMinute": 88,
+    "n": 6
+  },
+  "venues": {
+    "KSPO DOME": {
+      "fromMinute": 68,
+      "toMinute": 88,
+      "n": 6,
+      "source": "park",
+      "venueN": 0
+    },
+    "티켓링크 라이브 아레나": {
+      "fromMinute": 68,
+      "toMinute": 88,
+      "n": 6,
+      "source": "park",
+      "venueN": 0
+    },
+    "올림픽홀": {
+      "fromMinute": 68,
+      "toMinute": 88,
+      "n": 6,
+      "source": "park",
+      "venueN": 1
+    },
+    "우리금융아트홀": {
+      "fromMinute": 68,
+      "toMinute": 88,
+      "n": 6,
+      "source": "park",
+      "venueN": 0
+    },
+    "뮤즈라이브": {
+      "fromMinute": 68,
+      "toMinute": 88,
+      "n": 6,
+      "source": "park",
+      "venueN": 0
+    }
+  }
+}

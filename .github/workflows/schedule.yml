@@ -13,18 +13,10 @@ jobs:
       - name: 출차·수집 경계 조건 검사
         run: |
           node tests/engine.cjs
+          node tests/schedule-fetch.cjs
           python -m unittest discover -s tests
       - name: 지난달·이번 달·다음 달 공연 일정 받기
-        run: |
-          node -e '
-          const U="https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoListAjax.es";
-          const now=new Date(Date.now()+9*3600e3);
-          const yms=[-1,0,1].map(k=>{const d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()+k,1));return d.getUTCFullYear()+String(d.getUTCMonth()+1).padStart(2,"0")});
-          (async()=>{const months={};
-            for(const ym of yms){const r=await fetch(U,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({nowYM:ym,plcCd:""})});
-              if(!r.ok) throw new Error(ym+" "+r.status); months[ym]=await r.json();}
-            require("fs").writeFileSync("schedule.json",JSON.stringify({updated:new Date().toISOString(),months}));
-          })().catch(e=>{console.error(e);process.exit(1)});'
+        run: node scripts/fetch_schedule.cjs
       - name: 문화공공데이터광장 공연정보 보강
         id: enrich
         env:

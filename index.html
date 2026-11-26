@@ -13,6 +13,7 @@
   <script defer src="data2024.js"></script>
   <script defer src="park-schedule.js"></script><script defer src="venues.js"></script>
   <script defer src="engine.js"></script>
+  <script defer src="exit-profile.js"></script>
   <script defer src="flow-chart.js"></script>
   <script defer src="calendar.js"></script>
   <script defer src="app.js"></script><script defer src="recent.js"></script>
@@ -75,10 +76,10 @@
     <section class="panel schedule" id="schedule" aria-labelledby="showTitle">
       <div class="panel-title"><div class="panel-heading"><span class="icon-tile"><svg class="ico"><use href="#i-ticket"/></svg></span><h2 id="showTitle">공연 일정</h2></div><span class="count" id="showCount" hidden></span></div>
       <div class="shows" id="shows"></div><button id="scheduleRetry" class="panel-link" hidden>공연 일정 다시 확인</button>
-      <button id="scheduleHelp" class="panel-link" data-dialog="scheduleDialog"><svg class="ico"><use href="#i-clock"/></svg>공연별 혼잡 예상 시간<svg class="ico chevron"><use href="#i-chevron"/></svg></button>
+      <button id="scheduleHelp" class="panel-link" data-dialog="scheduleDialog"><svg class="ico"><use href="#i-clock"/></svg>과거 출차 참고 시간<svg class="ico chevron"><use href="#i-chevron"/></svg></button>
     </section>
     <section class="replay" id="replay" aria-label="공연 기록 재생" hidden>
-      <div class="replay-heading"><button id="play" class="play-btn" aria-label="기록 재생"><svg class="ico"><use href="#i-play"/></svg></button><div><strong>공연 밤 다시보기</strong><p>2024.07.20(토) 실제 기록</p></div></div>
+      <div class="replay-heading"><button id="play" class="play-btn" aria-label="기록 재생"><svg class="ico"><use href="#i-play"/></svg></button><div><strong>공연 밤 다시보기</strong><p>공연 기록 확인 중</p></div></div>
       <div class="scrubber"><div class="track-wrap"><label for="seek" class="sr">재생 위치</label><input id="seek" type="range" min="300" max="450" value="380" step="1"></div><div class="ticks"><span>20:00부터</span><span>22:30까지</span></div></div>
       <div class="replay-clock"><span>그날 시각</span><output class="replay-now" id="replayNow" for="seek">21:20</output></div><div class="replay-steps" role="group" aria-label="장면 선택"><button data-minute="300">공연 중</button><button data-minute="380">혼잡</button><button data-minute="420">출발 권장</button></div>
     </section>
@@ -86,7 +87,7 @@
       <div class="panel-title"><div class="panel-heading"><span class="icon-tile"><svg class="ico"><use href="#i-flow"/></svg></span><h2 id="flowTitle">출차 흐름</h2></div><button class="info-btn" data-dialog="dataDialog" aria-label="출차 흐름 그래프 읽는 법"><svg class="ico"><use href="#i-info"/></svg></button></div>
       <div class="chart-meta"><div><p class="metric-label" id="changeLabel">최근 5분 주차 대수 변화</p><p class="metric"><strong id="rate">—</strong><span id="changeUnit"></span></p></div><div class="legend"><span><i></i><b id="pastLabel">관측값</b></span><span id="forecastLegend"><i></i>예상</span></div></div>
       <svg id="flowChart" aria-label="시간대별 주차 대수 감소 추이"></svg>
-      <details id="nightReview" hidden><summary>이날의 공연과 출발 권장 검증</summary><div id="nightEvidence"></div></details>
+      <details id="nightReview" hidden><summary>이날의 공연 일정과 출차 판단</summary><div id="nightEvidence"></div></details>
       <p class="chart-note" id="chartNote">동2·남2·북2문 주차장 합산 기준</p>
     </section>
     <section class="panel guide" aria-labelledby="guideTitle">
@@ -98,8 +99,8 @@
   </div>
 </main>
 <footer class="footer"><div><span class="foot-brand"><img src="icon.svg" width="22" height="22" alt="">올팍 출차시계</span><span>올림픽공원 공공데이터 활용 서비스</span></div><button data-dialog="installDialog">홈 화면에 추가</button></footer>
-<dialog id="dataDialog"><div class="dialog-head"><span class="icon-tile"><svg class="ico"><use href="#i-book"/></svg></span><button class="close" aria-label="닫기"><svg class="ico"><use href="#i-close"/></svg></button></div><h2>출발 시각은 어떻게 정하나요?</h2><p class="dialog-intro">세 주차장의 주차 대수가 얼마나 빠르게 줄어드는지 살펴봐요.</p><dl><dt>실시간 주차현황</dt><dd>동2·남2·북2문 합계를 1분마다 조회해 최근 5분의 순감소량을 계산해요. 입차와 출차가 함께 반영되며, 출구별 대기 시간은 제공하지 않아요.</dd><dt>혼잡과 출발 판단</dt><dd>5분간 60대 이상 줄어들면 대량 출차로 보고, 그 시작에서 약 45분 뒤를 첫 출발 후보로 잡아요. 감소세가 이어지면 예상 시각도 늦춰요.</dd><dt>기록과 예상선</dt><dd>2024년 7월 입출차 기록 215,528건에서 공연 밤의 흐름을 재현했어요. 기록 체험의 실선은 5분 간격 값을 분 단위로 나눈 값이고, 점선은 과거 흐름을 바탕으로 계산한 예상이에요.</dd></dl><p class="image-credit">첫 화면의 공연장 풍경은 AI로 재구성한 이미지예요.</p><div class="source-links"><a href="https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoList.es?mid=a20301010100" target="_blank" rel="noopener">한국체육산업개발 공연 일정 ↗</a><a href="https://www.data.go.kr/data/15168686/openapi.do" target="_blank" rel="noopener">실시간 주차현황 원자료 ↗</a><a href="https://www.data.go.kr/data/15138735/fileData.do" target="_blank" rel="noopener">주차장 입출차 원자료 ↗</a></div></dialog>
-<dialog id="scheduleDialog"><div class="dialog-head"><span class="icon-tile"><svg class="ico"><use href="#i-calendar"/></svg></span><button class="close" aria-label="닫기"><svg class="ico"><use href="#i-close"/></svg></button></div><h2>공연별 혼잡 예상 시간</h2><p class="dialog-intro">공연 종료 예정 시각에서 30~90분 뒤를 혼잡 예상 구간으로 표시해요. 실제 종료 시각에 따라 달라질 수 있어요.</p><div id="windows"></div></dialog>
+<dialog id="dataDialog"><div class="dialog-head"><span class="icon-tile"><svg class="ico"><use href="#i-book"/></svg></span><button class="close" aria-label="닫기"><svg class="ico"><use href="#i-close"/></svg></button></div><h2>출발 시각은 어떻게 정하나요?</h2><p class="dialog-intro">세 주차장의 주차 대수가 얼마나 빠르게 줄어드는지 살펴봐요.</p><dl><dt>실시간 주차현황</dt><dd>동2·남2·북2문 합계를 1분마다 조회해 최근 5분의 순감소량을 계산해요. 입차와 출차가 함께 반영되며, 출구별 대기 시간은 제공하지 않아요.</dd><dt>혼잡과 출발 판단</dt><dd>5분간 60대 이상 줄어들면 대량 출차로 보고, 그 시작에서 약 45분 뒤를 첫 출발 후보로 잡아요. 감소세가 이어지면 예상 시각도 늦춰요.</dd><dt>기록과 예상선</dt><dd>2024년 7월 입출차 기록 215,528건을 공연 일정과 날짜별로 맞췄어요. 공식 러닝타임이 있는 공연 밤 6일에서 출차 흐름을 집계했어요. 기록 체험은 최신 실측을 우선 보여줘요. 입출차 재현은 받은 차량 기록의 1분 변화량을 사용해요. 그래프의 점선은 예상값이에요.</dd></dl><p class="image-credit">첫 화면의 공연장 풍경은 AI로 재구성한 이미지예요.</p><div class="source-links"><a href="https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoList.es?mid=a20301010100" target="_blank" rel="noopener">한국체육산업개발 공연 일정 ↗</a><a href="https://www.data.go.kr/data/15168686/openapi.do" target="_blank" rel="noopener">실시간 주차현황 원자료 ↗</a><a href="https://www.data.go.kr/data/15138735/fileData.do" target="_blank" rel="noopener">2024년 입출차 원자료 ↗</a><a href="https://www.data.go.kr/data/15159093/openapi.do" target="_blank" rel="noopener">2025년 입출차 원자료 ↗</a></div></dialog>
+<dialog id="scheduleDialog"><div class="dialog-head"><span class="icon-tile"><svg class="ico"><use href="#i-calendar"/></svg></span><button class="close" aria-label="닫기"><svg class="ico"><use href="#i-close"/></svg></button></div><h2>과거 출차 참고 시간</h2><p class="dialog-intro">2024년 7월 기록의 출차 정점과 절반 수준으로 줄어든 시각을 공연 종료 예정 시각에 맞춰 표시해요. 당일 출발은 실시간 안내를 확인해 주세요.</p><div id="windows"></div></dialog>
 <dialog id="installDialog"><div class="dialog-head"><span class="icon-tile"><svg class="ico"><use href="#i-clock"/></svg></span><button class="close" aria-label="닫기"><svg class="ico"><use href="#i-close"/></svg></button></div><h2>홈 화면에 추가</h2><p id="installHow" class="dialog-intro">브라우저 메뉴에서 ‘앱 설치’ 또는 ‘홈 화면에 추가’를 선택해 주세요.</p><button class="solid" id="install" hidden>설치하기</button></dialog>
 <div id="announce" role="status" class="sr"></div>
 <noscript>출차 시각을 계산하려면 브라우저에서 자바스크립트를 켜 주세요.</noscript>

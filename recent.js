@@ -44,7 +44,7 @@
         <div class="recent-steps" role="group" aria-label="공연 타임라인 장면"></div>
         <p class="recent-copy"></p>
       </div>
-      <p class="recent-note">이날의 주차 실측 기록은 없어요. 혼잡 예상 구간은 2024년 공연 밤의 출차 흐름을 참고했어요.</p>
+      <p class="recent-note">이날의 주차 실측 기록은 없어요. 종료 후 장면은 2024년 7월의 출차 기록을 참고해요.</p>
       <button type="button" class="recent-measured panel-link" hidden>이날 실측 기록으로 출차 흐름 재생</button>
     </div>`;
   dashboard.after(section);
@@ -109,11 +109,12 @@
 
   function stageContent(show) {
     const start = Number.isFinite(show.start), end = Number.isFinite(show.end);
+    const reference = window.exitProfile.reference(show);
     return [
       ['시작 30분 전', start ? clock(show.start - 30 * MIN) : '공연 전', '공연장 입장 전을 기준으로 잡은 장면이에요.'],
       ['공식 시작 시각', clock(show.start), start ? '공식 공연 일정에 안내된 시작 시각이에요.' : '공식 일정에 회차별 시작 시각이 공개되지 않았어요.'],
-      ['공연 종료 예정', end ? (show.endDefault ? '약 ' : '') + clock(show.end) : '시각 미공개', end ? (show.endDefault ? '러닝타임이 공개되지 않아 보통 공연 길이로 종료 시각을 추정했어요.' : '공식 시작 시각에 안내된 공연 소요 시간을 더했어요. 실제 종료 시각은 달라질 수 있어요.') : '공식 일정에 종료 시각을 계산할 정보가 없어, 다음 장면은 종료 후 경과 시간으로 보여드려요.'],
-      ['혼잡 예상 구간', end ? clock(show.end + 30 * MIN) + '–' + clock(show.end + 90 * MIN) : '종료 후 30~90분', '이전 공연 밤에는 종료 후 30~90분 사이에 출차가 몰리는 경향이 있었어요.']
+      ['공연 종료 예정', end ? (show.endDefault ? '약 ' : '') + clock(show.end) : '시각 미공개', end ? (show.endDefault ? '러닝타임이 공개되지 않아 보통 공연 길이로 종료 시각을 추정했어요.' : (show.endBasis || '공식 공연 일정') + '을 기준으로 안내해요. 실제 종료 시각은 달라질 수 있어요.') : '공식 일정에 종료 시각을 계산할 정보가 없어, 다음 장면에서도 시각을 확인할 수 없어요.'],
+      ['과거 출차 참고 시간', reference.label, reference.detail]
     ][stage];
   }
 
@@ -130,6 +131,8 @@
     play.setAttribute('aria-label', timer ? '공연 타임라인 일시정지' : '공연 타임라인 재생');
     play.setAttribute('aria-pressed', String(Boolean(timer)));
   }
+  window.exitProfile.ready.then(renderStage);
+
   function pause() {
     clearInterval(timer);
     timer = undefined;
@@ -141,10 +144,7 @@
     if (recordDays && Date.now() - recordsChecked < RECORDS_TTL) return recordDays;
     recordsAttempted = Date.now();
     try {
-      const r = await fetch('records/index.json', { cache: 'no-cache', signal: AbortSignal.timeout(9000) });
-      if (!r.ok) throw Error('record index unavailable');
-      const data = await r.json();
-      if (!Array.isArray(data.days)) throw Error('record index format');
+      const data = await window.exitClock.loadRecordIndex();
       recordDays = new Set(data.days.filter(d => d.count >= 30).map(d => d.day));
       recordsChecked = Date.now();
       recordsError = false;
@@ -158,7 +158,7 @@
       ? '주차 기록 목록을 확인하지 못했어요. 연결이 복구되면 다시 확인해요.'
       : has
       ? '이날 공연 밤에 1분 간격으로 저장한 주차 실측 기록이 있어요. 아래 버튼으로 그날의 출차 흐름과 출발 안내를 다시 볼 수 있어요.'
-      : '이날의 주차 실측 기록은 없어요. 혼잡 예상 구간은 2024년 공연 밤의 출차 흐름을 참고했어요.';
+      : '이날의 주차 실측 기록은 없어요. 종료 후 장면은 2024년 7월의 출차 기록을 참고해요.';
   }
   q('.recent-measured').addEventListener('click', () => {
     const show = performances[select.selectedIndex];
