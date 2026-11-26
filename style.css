@@ -31,3 +31,6 @@ dialog{width:min(480px,calc(100% - 32px));max-height:84dvh;border:1px solid var(
 @media(max-width:900px){.visit-picker{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}.picker-heading{grid-column:1/-1}.calendar-open{justify-content:center;background:var(--soft);border-radius:8px}.calendar-open .ico{width:15px}}@media(max-width:480px){.visit-picker{padding:12px}.calendar-fields{grid-template-columns:1fr}}
 
 .replay-clock{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;flex:none}.replay-clock span{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:0}
+
+/* Phones: the departure card comes first, the show picker right under it. */
+@media(max-width:740px){main#overview{display:flex;flex-direction:column;gap:14px}main#overview>.page-title{padding-bottom:3px}main#overview>.dashboard{display:contents}main#overview .dashboard>*{align-self:stretch;min-width:0}main#overview .hero{order:1}main#overview>.visit-picker{order:2;margin-bottom:0}main#overview .replay{order:3}main#overview .flow{order:4}main#overview .schedule{order:5}main#overview .guide{order:6}main#overview>#recent{order:7;margin-top:0}}

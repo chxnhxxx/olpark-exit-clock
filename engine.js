@@ -146,12 +146,14 @@
           typeof item.plc !== 'string' || !item.plc.trim() || !item.title || item.delYn === 'Y') continue;
       const rawDuration = String(item.ndTm || '').trim();
       const duration = /(?:(\d+)\s*시간(?:\s*(\d+)\s*분)?|(\d{1,3})\s*분)/.exec(rawDuration);
-      const minutes = duration ? Number(duration[1] || 0) * 60 + Number(duration[2] || duration[3] || 0) : null;
+      const published = duration ? Number(duration[1] || 0) * 60 + Number(duration[2] || duration[3] || 0) : null;
+      // No published running time: assume a typical concert length so the night can still be guided.
+      const minutes = published || (/KSPO|DOME|체조/i.test(item.plc) ? 150 : 120);
       for (const slot of sessionMinutes(item, day)) {
         const start = slot === null ? null : midnight + slot * MIN;
         const show = { evtSeq: item.evtSeq ?? null, title: item.title.normalize('NFKC').replace(/\s+/g, ' ').trim(), plc: item.plc.trim(),
           genre: item.cultureGenre || '', day, start, end: start !== null && minutes ? start + minutes * MIN : null,
-          endEstimated: Boolean(minutes && /약|예상|내외/.test(rawDuration)), tm: item.tm || '', ndTm: rawDuration };
+          endEstimated: !published || /약|예상|내외/.test(rawDuration), endDefault: !published, tm: item.tm || '', ndTm: rawDuration };
         shows.set(showKey(show), show);
       }
     }
@@ -295,8 +297,15 @@
       ({ tone, chip, head, lab, big, after, tip, go, alarm, wait: alarm });
     if (!demo && ((lastOk && t - lastOk > 5 * MIN) || (!lastOk && liveErr)))
       return result('stale', '연결 지연', '주차 정보를 기다리고 있어요', '', '', '', '기관 연결을 다시 시도하거나 공연 기록을 볼 수 있어요.');
-    if (d === null)
-      return result('wait', '관측 중', '출차 흐름을 확인하고 있어요', '', '', '', '5분 동안 주차 대수 변화를 모으면 출발 시각을 안내해요.');
+    const noShowDay = !demo && !shows.length && scheduleDay === dayKey(t);
+    if (d === null && noShowDay)
+      return result('calm', '공연 없음', '오늘은 공원 안 공연이 없어요', '추천 출발', '지금', '',
+        '올림픽공원 공연장 일정이 없는 날이에요. 주차 흐름은 계속 지켜보고, 대량 출차가 생기면 알려 드려요.', t);
+    if (d === null) {
+      const left = Math.max(1, Math.ceil(5 - (samples.length ? t - samples[0][0] : 0) / MIN));
+      return result('wait', '관측 중', '출차 흐름을 확인하고 있어요', '', '', '',
+        `주차 대수를 1분마다 받아 5분 변화를 계산해요. 약 ${left}분 뒤부터 안내해요. 화면을 오래 닫아 두면 처음부터 다시 모아요.`);
+    }
     if (onset !== null) {
       let go = onset + DURATION * MIN;
       const previous = dropAt(samples, t - 2 * MIN);
@@ -323,8 +332,10 @@
     const ends = selectedShow ? [selectedShow.end] :
       shows.filter(show => show.start && show.start <= t).map(show => show.end).filter(end => end && end < t + 4 * 60 * MIN);
     const end = ends.length ? Math.max(...ends) : null;
+    const guessed = (selectedShow ? [selectedShow] : shows).some(show => show.end === end && show.endDefault);
     if (end && t < end)
-      return result('show', '공연 중', '공연이 진행 중이에요', '예상 종료', clock(end), '', '종료 시각은 공연 일정과 러닝타임을 기준으로 계산해요.');
+      return result('show', '공연 중', '공연이 진행 중이에요', '예상 종료', (guessed ? '약 ' : '') + clock(end), '',
+        guessed ? '러닝타임이 공개되지 않아 보통 공연 길이로 종료 시각을 추정했어요. 실제 출차 흐름을 보고 바로 고쳐 안내해요.' : '종료 시각은 공연 일정과 러닝타임을 기준으로 계산해요.');
     if (end && t <= end + 110 * MIN)
       return result('soon', '공연 종료 후', '곧 출차가 몰릴 수 있어요', '추천 출발', '지금', '공연 종료 후 집중 구간', '아직 대량 출차 신호가 없어요. 종료 후 흐름이 빠르게 바뀔 수 있어요.', t);
     const upcoming = shows.filter(show => show.start && show.start > t && show.start - t < 6 * 60 * MIN)
@@ -332,6 +343,9 @@
     if (!selectedShow && upcoming)
       return result('show', '공연 전', '오늘 공연이 아직 시작 전이에요', '첫 공연 시작', clock(upcoming.start), '',
         '공연이 끝나기 전에는 출차가 몰리지 않아요. 종료 무렵부터 출차 흐름을 보고 출발 시각을 안내해요.');
+    if (noShowDay)
+      return result('calm', '공연 없음', '오늘은 공원 안 공연이 없어요', '추천 출발', '지금', '',
+        '올림픽공원 공연장 일정이 없는 날이에요. 주차 흐름은 계속 지켜보고, 대량 출차가 생기면 알려 드려요.', t);
     return result('calm', '평소 수준', '지금 출발하기 좋아요', '추천 출발', '지금', '출차 집중 신호가 없어요',
       '최근 5분간 주차 대수 변화가 대량 출차 기준에 못 미쳤어요.', t);
   }

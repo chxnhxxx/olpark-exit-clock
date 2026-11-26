@@ -49,7 +49,7 @@
     render(current);
   }
   function slot(show) {
-    return show.start ? time(show.start) + (show.end ? ' – ' + time(show.end) + ' 예정' : ' 시작 · 종료 미정') : '시작·종료 시각 미정';
+    return show.start ? time(show.start) + (show.end ? ' – ' + (show.endDefault ? '약 ' + time(show.end) + ' 종료 (추정)' : time(show.end) + ' 예정') : ' 시작 · 종료 미정') : '시작·종료 시각 미정';
   }
   function windowText(show) {
     return show.end ? time(show.end + 30 * minute) + ' – ' + time(show.end + 90 * minute) : '종료 시각 확인 후 안내';
@@ -258,7 +258,7 @@
     $('rate').textContent = s.rate === null ? '—' : Math.round(s.rate);
     $('pastLabel').textContent = s.demo ? '기록 재현' : '관측값';
     $('forecastLegend').hidden = !s.forecast.length;
-    $('chartNote').textContent = s.drop === null ? '동2·남2·북2문 주차 대수의 변화를 관측하고 있어요.' : '최근 5분간 주차 대수 ' + (s.drop === 0 ? '변화 없음' : Math.abs(s.drop) + '대 ' + (s.drop > 0 ? '감소' : '증가')) + ' · 세 주차장 합산';
+    $('chartNote').textContent = s.drop === null ? '동2·남2·북2문 주차 대수의 변화를 관측하고 있어요.' : '최근 5분간 주차 대수 ' + (s.drop === 0 ? '변화 없음' : Math.abs(s.drop) + '대 ' + (s.drop > 0 ? '감소' : '증가')) + ' · 세 주차장 합산' + (s.forecast.length ? '. 점선은 지난 공연 밤의 흐름으로 그린 예상이라 잠시 오르내릴 수 있어요.' : '');
     window.renderExitChart({ element: $('flowChart'), series: s.series, forecast: s.forecast, now: s.time, go: d.go, demo: s.demo });
     if (previous && previous.decision.tone !== d.tone) $('announce').textContent = d.head + '. ' + d.lab + ' ' + d.big;
   }
