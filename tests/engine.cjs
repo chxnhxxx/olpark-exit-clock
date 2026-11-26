@@ -83,6 +83,24 @@ function show(day, tm, ndTm = '120분') {
   await replay.api.replay(1190, '2026-11-27');
   assert.equal(replay.state().decision.tone, 'wait');
   assert.equal(replay.state().drop, null);
+  assert.equal(replay.state().review.points.length, 41);
+  assert.equal(replay.state().record.first, 1140);
+  assert.equal(replay.state().record.last, 1210);
+  assert.equal(replay.state().review.recommendation, null);
+  const signal = Array.from({length:40}, (_,i) => [790+i, 1200-Math.min(i,10)*15]);
+  async function firstGo(rows) {
+    const r = await start({time:'2026-11-28T12:00:00+09:00', record:{samples:rows}});
+    await r.api.replay(undefined,'2026-11-27');
+    for (const [m] of rows) {
+      r.api.seek(m);
+      if (r.state().decision.tone === 'go') {
+        assert.equal(r.state().review.recommendation,m);
+        return m;
+      }
+    }
+    assert.fail('expected a recommendation');
+  }
+  assert.equal(await firstGo(signal),await firstGo([...signal,[1470,400]]));
   const beforeGap = replay.state().series.filter(p => p.t <= Date.parse('2026-11-27T19:29:00+09:00') && p.r !== null);
   assert(beforeGap.length > 0);
   assert(beforeGap.every(p => p.r === 0));

@@ -263,25 +263,44 @@
     const limit = source.base + end * MIN;
     return source.samples.filter(s => s[0] <= limit);
   }
+  function reviewNight(samples, base, shows) {
+    const points = [], history = [], surges = [];
+    let longest = 0, previous = 779, recommendation = null;
+    for (const sample of samples) {
+      const [time] = sample, minute = (time - base) / MIN;
+      longest = Math.max(longest, minute - previous - 1);
+      if (minute - previous >= 6) { history.length = 0; surges.length = 0; }
+      previous = minute;
+      history.push(sample);
+      const drop = dropAt(history, time);
+      if (drop !== null && drop >= SURGE) surges.push(time);
+      while (surges.length && time - surges[0] > 90 * MIN) surges.shift();
+      if (recommendation === null && surges.length &&
+          decide(history, time, shows, null, drop, surges[0], true).tone === 'go') recommendation = minute;
+      points.push({ minute, drop });
+    }
+    const last = points.at(-1).minute;
+    return { points, longest, last, recommendation, base, shows };
+  }
   async function loadRecord(day) {
     if (!/^\d{4}-\d\d-\d\d$/.test(day || '')) return null;
     const doc = await fetchJSON('records/' + day + '.json');
     const base = Date.parse(day + 'T00:00:00+09:00');
-    const samples = (doc.samples || []).filter(s => Number.isInteger(s[0]) && Number.isInteger(s[1]))
+    const samples = Array.from(new Map((doc.samples || []).filter(s => Array.isArray(s) && Number.isInteger(s[0]) && s[0] >= 780 && s[0] <= 1470 && Number.isInteger(s[1]) && s[1] >= 0)).entries())
       .sort((a, b) => a[0] - b[0]).map(([m, v]) => [base + m * MIN, v]);
     if (samples.length < 30) return null;
     const minuteOf = t => Math.round((t - base) / MIN);
-    let first = minuteOf(samples[0][0]) + 6, last = minuteOf(samples.at(-1)[0]);
+    let first = minuteOf(samples[0][0]), last = minuteOf(samples.at(-1)[0]);
     // The first surge of the night anchors a 2.5-hour window around the exit rush.
     const onsetSample = samples.find(s => s[0] >= base + first * MIN && dropAt(samples, s[0]) >= SURGE);
     const onset = onsetSample ? minuteOf(onsetSample[0]) : null;
-    if (onset !== null) { first = Math.max(first, onset - 60); last = Math.min(last, onset + 90); }
+    const shows = showsForDay(doc.shows || [], day);
     const clamp = m => Math.max(first, Math.min(last, m));
     const steps = onset === null ? [first, clamp(Math.round((first + last) / 2)), last]
       : [clamp(onset - 30), clamp(onset + 10), clamp(onset + DURATION)];
     const [y, m, d] = day.split('-');
     return { id: day, label: `${y}.${m}.${d}(${DAYS[new Date(base + 12 * 3600000).getUTCDay()]}) 실측 기록`,
-      base, first, last, start: steps[1], steps, samples, shows: showsForDay(doc.shows || [], day) };
+      base, first, last, start: steps[1], steps, samples, shows, review: reviewNight(samples, base, shows) };
   }
   function rates(samples, end) {
     if (samples.length < 2) return [];
@@ -311,12 +330,12 @@
     });
   }
 
-  function decide(samples, t, shows, selectedShow, d, onset) {
+  function decide(samples, t, shows, selectedShow, d, onset, isReplay = demo) {
     const result = (tone, chip, head, lab, big, after, tip, go = null, alarm = false) =>
       ({ tone, chip, head, lab, big, after, tip, go, alarm, wait: alarm });
-    if (!demo && ((lastOk && t - lastOk > 5 * MIN) || (!lastOk && liveErr)))
+    if (!isReplay && ((lastOk && t - lastOk > 5 * MIN) || (!lastOk && liveErr)))
       return result('stale', '연결 지연', '주차 정보를 기다리고 있어요', '', '', '', '기관 연결을 다시 시도하거나 공연 기록을 볼 수 있어요.');
-    const noShowDay = !demo && !shows.length && scheduleDay === dayKey(t);
+    const noShowDay = !isReplay && !shows.length && scheduleDay === dayKey(t);
     if (d === null) {
       const left = Math.max(1, Math.ceil(5 - (samples.length ? t - samples[0][0] : 0) / MIN));
       return result('wait', '관측 중', '출차 흐름을 확인하고 있어요', '', '', '',
@@ -327,16 +346,16 @@
       const previous = dropAt(samples, t - 2 * MIN);
       const below = previous !== null && previous < SURGE && d < SURGE;
       const settled = below && (d < CALM || (t >= go && d < SURGE * 0.6) || t >= go + 5 * MIN);
-      if (d >= SURGE || (!settled && (demo || liveGo !== onset))) {
+      if (d >= SURGE || (!settled && (isReplay || liveGo !== onset))) {
         const crowded = d >= SURGE;
         if (t >= go - (crowded ? 2 : 0) * MIN) go = t + (crowded ? 5 : 3) * MIN;
-        if (crowded && !demo) liveGo = null;
+        if (crowded && !isReplay) liveGo = null;
         return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중',
           crowded ? '조금 쉬었다 출발하세요' : '출차 흐름이 잦아들고 있어요', '예상 출발 시각', clock(go),
           '약 ' + Math.ceil((go - t) / MIN) + '분 뒤',
           crowded ? '주차 대수가 빠르게 줄고 있어요. 출차가 몰리는 시간이에요.' : '혼잡이 누그러지고 있어요. 관측값을 보고 출발 시각을 조정해요.', go, true);
       }
-      if (!demo) liveGo = onset;
+      if (!isReplay) liveGo = onset;
       return result('go', '출발 권장', '지금 출발하기 좋아요', '추천 출발', '지금', '출차 집중 구간이 지났어요', '5분간 주차 대수 감소폭이 혼잡 기준 아래로 내려왔어요.', t);
     }
     if (selectedShow?.start && t < selectedShow.start)
@@ -403,7 +422,7 @@
     const series = end ? rates(history, demo ? time : end) : [];
     const decision = decide(samples, time, shows, selectedShow, drop, onset);
     latestState = { demo, playing, time, minute: demo ? minute : null,
-      record: { id: source.id, label: source.label, first: source.first, last: source.last, steps: source.steps }, lastOk: demo ? time : lastOk,
+      review: demo ? source.review : null, record: { id: source.id, label: source.label, first: source.first, last: source.last, steps: source.steps }, lastOk: demo ? time : lastOk,
       schedulePending: !demo && scheduleDay !== day && !schedErr, liveErr: !demo && liveErr, schedErr: !demo && schedErr,
       shows, selectedShow, decision, series,
       forecast: predict(series, onset, decision, time), rate: fresh ? series.at(-1)?.r ?? null : null,

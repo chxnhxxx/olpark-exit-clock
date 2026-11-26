@@ -204,7 +204,73 @@
   };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) keepAwake(); });
 
+  let displayedReview;
+  function renderReview(review) {
+    if (displayedReview === review) return;
+    displayedReview = review;
+    $('nightReview').hidden = !review;
+    const box = $('nightEvidence');
+    box.replaceChildren();
+    if (!review) return;
+    const {points, longest, last, recommendation, shows, base} = review;
+    const stamp = m => (m >= 1440 ? '다음 날 ' : '') + [Math.floor(m / 60) % 24, m % 60].map(n => String(n).padStart(2, '0')).join(':');
+    const add = text => box.append(el('p', 'chart-note', text));
+    add('동2·남2·북2문 주차장 합계 · 수집 ' + points.length + ' / 예정 691분 · 마지막 관측 ' + stamp(last));
+    add('13:00부터 마지막 관측까지 가장 긴 누락 ' + longest + '분 · 수집 예정 종료 다음 날 00:30');
+    const at = m => points.find(p => p.minute === m)?.drop;
+    const measure = m => at(m) == null ? '관측 부족' : at(m) + '대';
+    const markers = [];
+    for (const show of shows) {
+      for (const [label, time] of [['시작', show.start], ['종료 예상', show.end]]) {
+        if (Number.isFinite(time)) markers.push({minute:(time-base)/60000, label:show.plc + ' · ' + show.title + ' ' + label});
+      }
+    }
+    if (recommendation !== null) markers.push({minute:recommendation,label:'혼잡 감지 후 첫 출발 권장'});
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 600 130');
+    svg.setAttribute('role','img');
+    svg.setAttribute('aria-label','13시부터 다음 날 0시 30분까지의 5분 순감소. 세로선은 공연 일정과 첫 권장 시각이며 빈 구간은 관측 부족입니다.');
+    const x = m => 6 + (m-780)/690*588;
+    const valid = points.filter(p => p.drop !== null);
+    const low = Math.min(0,...valid.map(p => p.drop)), high = Math.max(60,...valid.map(p => p.drop));
+    const y = v => 115 - (v-low)/(high-low)*105;
+    function path(d,color,width,dash) {
+      const node = document.createElementNS(svg.namespaceURI,'path');
+      node.setAttribute('d',d); node.setAttribute('fill','none'); node.setAttribute('stroke',color);
+      node.setAttribute('stroke-width',width);
+      if (dash) node.setAttribute('stroke-dasharray',dash);
+      svg.append(node);
+    }
+    path('M6 '+y(60)+' H594','var(--muted)',1,'5 4');
+    let line = '', prev = null;
+    for (const p of valid) {
+      line += (p.minute === prev+1 ? ' L' : ' M') + x(p.minute) + ' ' + y(p.drop);
+      prev = p.minute;
+    }
+    path(line,'var(--green)',2);
+    for (const marker of markers.filter(m => m.minute >= 780 && m.minute <= 1470)) {
+      path('M'+x(marker.minute)+' 5 V120',marker.minute === recommendation ? 'var(--green)' : 'var(--muted)',1.5,'2 3');
+    }
+    box.append(svg);
+    add('13:00 → 다음 날 00:30 · 실선은 5분 순감소, 가로 점선은 혼잡 기준 60대예요. 아래 시각을 누르면 해당 장면으로 이동해요.');
+    const timeline = document.createElement('ol');
+    for (const marker of markers.sort((a,b) => a.minute-b.minute)) {
+      const li = document.createElement('li');
+      const button = el('button','panel-link',stamp(marker.minute) + ' · ' + marker.label);
+      button.type = 'button';
+      button.disabled = marker.minute < points[0].minute || marker.minute > last;
+      button.addEventListener('click', () => clock.seek(marker.minute));
+      li.append(button); timeline.append(li);
+    }
+    box.append(timeline);
+    if (recommendation === null) { add('관측 구간에서 혼잡 감지 후 출발 권장으로 바뀐 시점이 없어요.'); return; }
+    add('첫 권장 전후의 5분 순감소 · 5분 전 ' + measure(recommendation-5) + ' / 권장 시점 ' + measure(recommendation) + ' / 5분 뒤 ' + measure(recommendation+5));
+    const again = points.find(p => p.minute > recommendation && p.drop >= 60);
+    add(again ? '이후 혼잡 신호가 다시 관측된 시각 ' + stamp(again.minute) : '이후 유효한 관측값에서 혼잡 신호가 다시 나타나지 않았어요.');
+    add('권장 시각은 해당 분까지의 기록으로 재현했어요. 실제 차량별 대기시간은 측정하지 않아요.');
+  }
   function render(s) {
+    renderReview(s.review);
     const previous = current, d = s.decision;
     current = s;
     syncVenue(s);

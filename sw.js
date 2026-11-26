@@ -1,4 +1,4 @@
-const CACHE = 'olpark-exit-clock-v23';
+const CACHE = 'olpark-exit-clock-v24';
 const SHELL = ['./', './index.html', './assets/pretendard.woff2', './data2024.js', './venues.js', './recent.js', './park-schedule.js', './engine.js', './calendar.js', './flow-chart.js', './app.js', './style.css', './hero.webp', './icon.svg', './assets/icon-192.png', './assets/icon-512.png', './manifest.json', './schedule.json'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
