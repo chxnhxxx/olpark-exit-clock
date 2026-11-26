@@ -1,0 +1,43 @@
+name: 2025 입출차 집계 수집
+on:
+  schedule:
+    - cron: '20 * * * *'   # resumes every hour until all pages are done
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: '처음 3행 형식만 확인 (1)'
+        default: '0'
+permissions:
+  contents: write
+concurrency:
+  group: inout2025
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - name: 집계 브랜치 준비
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code origin data-inout-2025 >/dev/null; then
+            git fetch origin data-inout-2025
+            git worktree add data origin/data-inout-2025
+            git -C data checkout -B data-inout-2025
+          else
+            git worktree add --detach data
+            git -C data checkout --orphan data-inout-2025
+            git -C data rm -rq --cached .
+            find data -mindepth 1 -maxdepth 1 ! -name .git -exec rm -r {} +
+          fi
+      - name: 수집
+        env:
+          KCISA_INOUT_KEY: ${{ secrets.KCISA_INOUT_KEY }}
+          PROBE: ${{ inputs.probe == '1' && '1' || '' }}
+          DATA_REPO: data
+          RUN_MINUTES: '320'
+        run: |
+          if [ -f data/inout2025/state.json ] && grep -q '"done": true' data/inout2025/state.json && [ -z "$PROBE" ]; then echo "이미 완료"; exit 0; fi
+          python scripts/fetch_inout_2025.py
