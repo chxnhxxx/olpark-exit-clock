@@ -200,14 +200,15 @@
     if (ticks.length) {
       // Keep the threshold annotation legible without coloring the data itself.
       // Put the label where no observed or forecast line passes through it.
-      const ty = y(12), w = 78, pts = [...observed, ...projected].map(p => [x(p.t), y(p.r)]).sort((a, b) => a[0] - b[0]);
+      const narrow = right - left < 300, thresholdText = narrow ? "기준 12대/분" : "혼잡 기준 12대/분";
+      const ty = y(12), w = narrow ? 70 : 100, pts = [...observed, ...projected].map(p => [x(p.t), y(p.r)]).sort((a, b) => a[0] - b[0]);
       const lineY = px => { for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; if (px >= x0 && px <= x1) return x1 === x0 ? y1 : y0 + (y1 - y0) * (px - x0) / (x1 - x0); } return null; };
       const clear = (x0, top0, bot0) => { for (let px = x0; px <= x0 + w; px += 3) { const ly = lineY(px); if (ly !== null && ly > top0 - 10 && ly < bot0 + 10) return false; } return true; };
       // Try spots from the right edge leftward, above then below the line; keep the first clear one.
       const spots = [];
       for (let sx = right - 1; sx - w >= left + 2; sx -= 12) spots.push(['end', sx, ty - 5], ['end', sx, ty + 15]);
       const [side, thresholdX, thresholdY] = spots.find(([, sx, sy]) => clear(sx - w, sy - 12, sy + 2)) || spots[0] || ['end', right - 1, ty - 5];
-      segments.push(`<text x="${thresholdX}" y="${thresholdY}" text-anchor="${side}" fill="${color.threshold}" stroke="${color.panel}" stroke-width="3" paint-order="stroke" font-size="12">혼잡 기준 12</text>`);
+      segments.push(`<text x="${thresholdX}" y="${thresholdY}" text-anchor="${side}" fill="${color.threshold}" stroke="${color.panel}" stroke-width="3" paint-order="stroke" font-size="12">${thresholdText}</text>`);
     } else {
       const cx = (left + right) / 2, cy = (top + bottom) / 2;
       segments.push(`<rect x="${cx - 74}" y="${cy - 18}" width="148" height="36" rx="12" fill="${color.panel}"/>`,
