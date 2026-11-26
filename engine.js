@@ -400,7 +400,7 @@
     const end = samples.at(-1)?.[0], fresh = end && time - end <= 5 * MIN;
     const drop = fresh ? dropAt(samples, end) : null;
     const onset = samples.find(s => time - s[0] <= 90 * MIN && dropAt(samples, s[0]) >= SURGE)?.[0] ?? null;
-    const series = end ? rates(history, time) : [];
+    const series = end ? rates(history, demo ? time : end) : [];
     const decision = decide(samples, time, shows, selectedShow, drop, onset);
     latestState = { demo, playing, time, minute: demo ? minute : null,
       record: { id: source.id, label: source.label, first: source.first, last: source.last, steps: source.steps }, lastOk: demo ? time : lastOk,

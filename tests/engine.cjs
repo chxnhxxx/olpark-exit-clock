@@ -36,6 +36,11 @@ async function start({ time, seed = [], rows = [], parking = 1000, record }) {
   await settle();
   return {
     api, state: () => state,
+    async tick(ms) {
+      now += ms;
+      intervals.filter(timer => timer.ms === 15000).forEach(timer => timer.fn());
+      await settle();
+    },
     async advance(iso) { now = Date.parse(iso); api.refresh(); await settle(); },
   };
 }
@@ -49,6 +54,8 @@ function show(day, tm, ndTm = '120분') {
     seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]] });
   assert.equal(ready.state().drop, 60);
   assert.equal(ready.state().decision.tone, 'jam');
+  await ready.tick(15000);
+  assert.equal(ready.state().rate, 12);
   const six = await start({ time: '2026-11-27T21:00:00+09:00', seed: [[-6, 1200]] });
   assert.equal(six.state().drop, null);
   assert.equal(six.state().decision.tone, 'wait');
