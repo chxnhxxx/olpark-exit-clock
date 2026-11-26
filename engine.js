@@ -151,6 +151,16 @@
     // A malformed out-of-range date in the publisher's list cannot establish a start time.
     return dates.some(date => date < item.beginDt || date > item.endDt) ? [null] : [];
   }
+  function sessionsFor(item, day) {
+    const slots = sessionMinutes(item, day), text = String(item.tm || '');
+    // KOPIS 공연시간 fills a day the official text gives no time for: an unknown time, or a weekday the
+    // weekly text never mentions. Days the official text closes or lists by date stay as they are.
+    const unknown = slots.length === 1 && slots[0] === null;
+    const unmentioned = !slots.length && !closed.test(text) && !/\d{1,2}\s*(?:월|[.\/])\s*\d{1,2}/.test(text);
+    if (!item.tmKopis || !(unknown || unmentioned)) return { slots, source: '' };
+    const alt = sessionMinutes({ ...item, tm: String(item.tmKopis).replace(/HOL\s*\([^)]*\)/gi, '') }, day);
+    return alt.some(Boolean) ? { slots: alt.filter(Boolean), source: '공연예술통합전산망 공연시간' } : { slots, source: '' };
+  }
   function showKey(show) {
     return JSON.stringify([show.evtSeq ?? show.title, show.plc, show.start ?? show.day ?? null]);
   }
@@ -165,7 +175,8 @@
       const published = duration ? Number(duration[1] || 0) * 60 + Number(duration[2] || duration[3] || 0) : null;
       // No published running time: assume a typical concert length so the night can still be guided.
       const minutes = published || (/KSPO|DOME|체조/i.test(item.plc) ? 150 : 120);
-      for (const slot of sessionMinutes(item, day)) {
+      const { slots, source: timeSource } = sessionsFor(item, day);
+      for (const slot of slots) {
         const start = slot === null ? null : midnight + slot.start * MIN;
         const explicitEnd = slot?.end === null || slot?.end === undefined ? null : midnight + slot.end * MIN;
         const endBasis = explicitEnd ? '공식 일정의 종료 시각' : !published ? '일반 러닝타임 추정' :
@@ -174,7 +185,7 @@
         const show = { evtSeq: item.evtSeq ?? null, title: item.title.normalize('NFKC').replace(/\s+/g, ' ').trim(), plc: item.plc.trim(),
           genre: item.cultureGenre || '', day, start, end: explicitEnd ?? (start === null ? null : start + minutes * MIN),
           endBasis, endEstimated: !explicitEnd && (!published || /약|예상|내외/.test(rawDuration)),
-          endDefault: !explicitEnd && !published, tm: item.tm || '', ndTm: rawDuration };
+          endDefault: !explicitEnd && !published, tm: item.tm || '', ndTm: rawDuration, timeSource };
         shows.set(showKey(show), show);
       }
     }

@@ -1,4 +1,4 @@
-"""Check KOPIS coverage for the four Olympic Park halls and fill missing running times.
+"""Check KOPIS coverage for the Olympic Park halls, fill missing running times and keep KOPIS session times.
 
 Reads KOPIS_SERVICE_KEY from the environment and never prints it.
 Writes a coverage report to stdout (and to $GITHUB_STEP_SUMMARY when set).
@@ -20,7 +20,8 @@ import xml.etree.ElementTree as ET
 KEY = os.environ["KOPIS_SERVICE_KEY"]
 BASE = "https://www.kopis.or.kr/openApi/restful/"
 HALLS = {"체조경기장": "KSPO DOME", "올림픽홀": "올림픽홀",
-         "핸드볼경기장": "티켓링크 라이브 아레나", "우리금융아트홀": "우리금융아트홀"}
+         "핸드볼경기장": "티켓링크 라이브 아레나", "우리금융아트홀": "우리금융아트홀",
+         "뮤즈라이브": "뮤즈라이브"}
 FACILITY_QUERIES = ("올림픽공원",)
 
 
@@ -112,7 +113,7 @@ official = {k: v for k, v in official.items() if hall(v[0].get("plc"))}
 today = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=9)
 first = dt.date(today.year, today.month, 1)
 months = []
-for k in (-1, 0, 1, 2):
+for k in range(-1, 7):  # same window as fetch_schedule.cjs
     y, m = divmod(first.month - 1 + k, 12)
     start = dt.date(first.year + y, m + 1, 1)
     end = (dt.date(start.year + (start.month == 12), start.month % 12 + 1, 1) - dt.timedelta(days=1))
@@ -150,7 +151,7 @@ for rid, rec in records.items():
 records = {r: rec for r, rec in records.items() if rec["hall"]}
 
 # --- match official shows to KOPIS -------------------------------------------
-lines, matched, filled, used = [], {}, [], set()
+lines, matched, filled, used, filled_tm = [], {}, [], set(), []
 for key, evs in official.items():
     ev = evs[0]
     h = hall(ev["plc"])
@@ -170,6 +171,14 @@ for key, evs in official.items():
         used.add(rid)
         rec = records[rid]
         had = bool(str(ev.get("ndTm") or "").strip())
+        # KOPIS 공연시간 (e.g. "화요일 ~ 금요일(20:00), 토요일(15:00,19:00)"): the app falls back to it
+        # only for days the official text leaves without a time.
+        guide = (rec.get("dtguidance") or "").strip()
+        if guide:
+            for e in evs:
+                e["tmKopis"], e["tmKopisSource"] = guide, "KOPIS " + rid
+            if guide != str(ev.get("tm") or "").strip():
+                filled_tm.append(key)
         if not had and rec["minutes"]:
             for e in evs:
                 e["ndTm"] = f"{rec['minutes']}분"
@@ -181,7 +190,7 @@ for key, evs in official.items():
         lines.append(f"| {ev['beginDt']} | {HALLS[h]} | {ev['title'][:28]} | (매칭 없음{', 후보 ' + str(len(cands)) if cands else ''}) | | "
                      f"{ev.get('ndTm') or '(없음)'} | |")
 
-window = (months[0][0].isoformat(), months[2][1].isoformat())
+window = (months[0][0].isoformat(), months[-1][1].isoformat())
 in_window = {r: rec for r, rec in records.items() if rec["to"] >= window[0] and rec["from"] <= window[1]}
 missing_official = [rec for r, rec in in_window.items() if r not in used]
 with_rt = sum(1 for rec in in_window.values() if rec["minutes"])
@@ -189,10 +198,11 @@ blank_before = [k for k, v in official.items() if not str(v[0].get("ndTm") or ""
 
 report = [
     "## KOPIS 공연정보 점검",
-    f"- 기간: {window[0]} ~ {window[1]} (지난달부터 3개월), 올림픽공원 4개 공연장",
+    f"- 기간: {window[0]} ~ {window[1]} (지난달부터 8개월), 올림픽공원 4개 공연장",
     f"- KOPIS 공연 수: {len(in_window)}건, 러닝타임 있음: {with_rt}건 ({with_rt / len(in_window) * 100:.0f}%)" if in_window else "- KOPIS 공연 수: 0건",
     f"- 공식 일정 공연 수: {len(official)}건, KOPIS와 매칭: {len(matched)}건 ({len(matched) / len(official) * 100:.0f}%)" if official else "- 공식 일정 공연 수: 0건",
     f"- 공식 러닝타임이 비어 있던 공연: {len(blank_before)}건, KOPIS로 채움: {len(filled)}건",
+    f"- KOPIS 공연시간(요일별 회차)을 함께 저장한 공연: {len(filled_tm)}건",
     "",
     "| 시작일 | 공연장 | 공식 제목 | KOPIS 제목 | 유사도 | 공식 러닝타임 | KOPIS 러닝타임 |",
     "|---|---|---|---|---|---|---|",
@@ -209,5 +219,5 @@ if os.environ.get("GITHUB_STEP_SUMMARY"):
         f.write(text + "\n")
 pathlib.Path("kopis_report.md").write_text(text + "\n", encoding="utf-8")
 
-if filled:
+if filled or filled_tm:
     path.write_text(json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

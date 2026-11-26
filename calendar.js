@@ -92,6 +92,7 @@
     if (Number.isFinite(show.start)) timing.push(clock.format(show.start) + ' 시작');
     if (Number.isFinite(show.end)) timing.push(show.endDefault ? '약 ' + clock.format(show.end) + ' 종료 (추정)' : clock.format(show.end) + ' 종료 예상');
     row.append(el('p', 'show-time', timing.join(' · ') || '회차 시각 미확인 · 공식 일정에서 확인하세요.'));
+    if (show.timeSource) row.append(el('p', 'show-source', '회차 시각 출처 · ' + show.timeSource + ' (공식 일정에는 이 요일 시각이 없어요)'));
     const actions = el('div', 'calendar-actions');
     if (/^\d+$/.test(String(show.evtSeq))) {
       const link = el('a', '', '공식 상세 일정 ↗');

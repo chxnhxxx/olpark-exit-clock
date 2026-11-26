@@ -23,3 +23,15 @@ const cases = [
 for (const [tm, expected] of cases)
   for (const [day, want] of Object.entries(expected)) assert.equal(starts(tm, day), want, tm + ' @ ' + day);
 console.log('PASS weekday session times (평일/주말, bracketed day lists, multiple sessions, closed days)');
+
+// KOPIS 공연시간 fills weekdays the official text leaves out, never days it lists by date or closes.
+const withKopis = (tm, tmKopis, day) => box.exitClock.showsForDay([{ title: 't', plc: 'p', beginDt: '2027-01-01', endDt: '2027-07-03', tm, tmKopis, ndTm: '70분' }], day)
+  .map(s => hhmm(s.start) + (s.timeSource ? '*' : '')).join(',');
+const kopis = '수요일 ~ 금요일(11:00), 토요일 ~ 일요일(14:00), HOL(14:00)';
+assert.equal(withKopis('주말 및 공휴일 14시 ', kopis, '2027-01-06'), '11:00*');
+assert.equal(withKopis('주말 및 공휴일 14시 ', kopis, '2027-01-09'), '14:00');
+assert.equal(withKopis('주말 및 공휴일 14시 ', kopis, '2027-01-04'), '');
+assert.equal(withKopis('', kopis, '2027-01-07'), '11:00*');
+assert.equal(withKopis('2027년 1월 9일(토) 6PM', kopis, '2027-01-08'), '');
+assert.equal(withKopis('토 11시 (수 공연없음)', kopis, '2027-01-06'), '');
+console.log('PASS KOPIS session-time fallback');
