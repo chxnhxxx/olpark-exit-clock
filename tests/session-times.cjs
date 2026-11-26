@@ -35,3 +35,12 @@ assert.equal(withKopis('', kopis, '2027-01-07'), '11:00*');
 assert.equal(withKopis('2027년 1월 9일(토) 6PM', kopis, '2027-01-08'), '');
 assert.equal(withKopis('토 11시 (수 공연없음)', kopis, '2027-01-06'), '');
 console.log('PASS KOPIS session-time fallback');
+
+// Public holidays (fixed dates only) and "A 및 B 14시" clauses.
+assert.equal(starts('주말 및 공휴일 14시 ', '2027-03-01'), '14:00');   // 삼일절, Monday
+assert.equal(starts('주말 및 공휴일 14시 ', '2027-03-02'), '');
+assert.equal(starts('평일 19시 30분 / 주말·공휴일 14시', '2027-05-05'), '14:00'); // 어린이날, Wednesday
+assert.equal(starts('평일 19시 30분 / 주말·공휴일 14시', '2027-05-06'), '19:30');
+assert.equal(starts('평일 19시 30분 / 주말·공휴일 14시', '2027-05-08'), '14:00');
+assert.equal(starts('토, 일 15시', '2027-01-09'), '15:00');
+console.log('PASS holidays and shared clauses');

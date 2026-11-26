@@ -53,6 +53,8 @@
   }
 
   const DAYS = '일월화수목금토';
+  // Fixed-date public holidays (MM-DD). Lunar holidays move every year and are not inferred.
+  const HOLIDAYS = new Set(['01-01', '03-01', '05-05', '06-06', '08-15', '10-03', '10-09', '12-25']);
   const closed = /휴연|휴관|공연\s*없음|공연\s*없습니다|공연\s*취소/;
   function timesIn(text) {
     // The institution uses 7:30PM, 9:00:00PM, 오후 7시 30분, and multiple slots in one clause.
@@ -90,18 +92,28 @@
         let range = from, i = DAYS.indexOf(from);
         while (DAYS[i] !== to) { i = (i + 1) % 7; range += DAYS[i]; }
         return range;
-      }).replace(/([일월화수목금토])(?:요일)?\s*[,·]\s*(?=[일월화수목금토](?:요일)?(?:\s|[,·]))/g, '$1');
-    const anchors = [...normalized.matchAll(/(?<![가-힣\d])(?:매주\s*)?(평일|주말|[월화수목금토일]+)(?:요일)?(?=\s|[:：/()])/g)];
+      }).replace(/([일월화수목금토])(?:요일)?\s*[,·]\s*(?=[일월화수목금토](?:요일)?(?:\s|[,·]))/g, '$1')
+      // "평일 수목금" (from "평일(수), (목), (금)"): the listed days narrow 평일/주말.
+      .replace(/(평일|주말)\s+(?=[월화수목금토일]+(?:요일)?(?:\s|[:：/()]))/g, '');
+    const anchors = [...normalized.matchAll(/(?<![가-힣\d])(?:매주\s*)?(평일|주말|공휴일|휴일|HOL|[월화수목금토일]+)(?:요일)?(?=\s|[:：/(),·]|$)/gi)];
     if (!anchors.length) return closed.test(normalized) ? [] : timesIn(normalized);
     const weekday = DAYS[new Date(day + 'T00:00:00Z').getUTCDay()];
+    const isHolidayWord = word => /^(?:공휴일|휴일|hol)$/i.test(word);
+    // On a public holiday, a holiday clause replaces the weekday's own clause.
+    const holiday = HOLIDAYS.has(day.slice(5)) && anchors.some(a => isHolidayWord(a[1]));
+    const clauseOf = i => normalized.slice(anchors[i].index + anchors[i][0].length, anchors[i + 1]?.index);
     const common = timesIn(normalized.slice(0, anchors[0].index));
     const slots = [];
     let matched = false;
     for (let i = 0; i < anchors.length; ++i) {
-      const a = anchors[i], days = a[1].replace('평일', '월화수목금').replace('주말', '토일');
-      if (!days.includes(weekday)) continue;
+      const word = anchors[i][1];
+      const hit = holiday ? isHolidayWord(word) : !isHolidayWord(word) &&
+        word.replace('평일', '월화수목금').replace('주말', '토일').includes(weekday);
+      if (!hit) continue;
       matched = true;
-      const clause = normalized.slice(a.index + a[0].length, anchors[i + 1]?.index);
+      // "주말 및 공휴일 14시", "토, 공휴일 14시": a clause with only a connector shares the next clause's times.
+      let j = i, clause = clauseOf(j);
+      while (/^[\s,·및와과&/]*$/.test(clause) && j + 1 < anchors.length) clause = clauseOf(++j);
       if (closed.test(clause)) return [];
       slots.push(...timesIn(clause));
     }
