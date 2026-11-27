@@ -8,7 +8,13 @@
   const SURGE = 60;
   const CALM = 25;
   const DURATION = 45;
-  const RANGE_FROM = 30, RANGE_TO = 65;
+  // First-estimate ranges (minutes after the surge) from the 2025 backtest, leave-one-out over 98 show nights.
+  // Only 우리금융아트홀 beat the shared range (inside range 7→19 of 25 nights); KSPO DOME and 올림픽홀 did
+  // not (15/28 vs 19/28, 11/21 vs 13/21), so they keep the shared 30–65.
+  const EXIT_RANGES = [
+    { match: /우리금융/, from: 15, to: 45, note: '2025년 우리금융아트홀 공연 밤 절반이 이 범위 안에 풀렸어요.' },
+  ];
+  const SHARED_RANGE = { from: 30, to: 65, note: '2025년 공연 밤 절반은 이 범위 안에 풀렸어요.' };
   const RECONSTRUCTED_RECORD = '2025-12-06';
   const RECORDS_MAIN = 'https://raw.githubusercontent.com/chxnhxxx/olpark-exit-clock/main/records/';
   const API = 'https://www.ksponco.or.kr/online/main/parkingorsApi.do?apiKey=PARKING21803504';
@@ -329,13 +335,28 @@
     }
     return unknown ? null : false;
   }
+  // The show behind a surge: the latest one ending between 150 min before and 15 min after it.
+  function exitRange(shows, onset) {
+    const show = shows.filter(x => x.end && x.end >= onset - 150 * MIN && x.end <= onset + 15 * MIN)
+      .sort((a, b) => b.end - a.end)[0];
+    return EXIT_RANGES.find(r => show && r.match.test(show.plc || '')) || SHARED_RANGE;
+  }
+  // "Cleared" uses the backtest rule exactly: 5-minute windows counted from the surge, the first one
+  // that is followed by a second straight window both under CALM.
+  function clearedAt(samples, onset) {
+    for (let j = 1; j <= 48; j++) {
+      const a = dropAt(samples, onset + 5 * j * MIN), b = dropAt(samples, onset + 5 * (j + 1) * MIN);
+      if (a !== null && b !== null && a < CALM && b < CALM) return onset + 5 * j * MIN;
+    }
+    return null;
+  }
   function archiveSamples(end) {
     const limit = source.base + end * MIN;
     return source.samples.filter(s => s[0] <= limit);
   }
   function reviewNight(samples, base, shows) {
     const points = [], history = [], surges = [];
-    let longest = 0, previous = 779, recommendation = null;
+    let longest = 0, previous = 779, recommendation = null, firstRange = null, firstOnset = null;
     for (const sample of samples) {
       const [time] = sample, minute = (time - base) / MIN;
       longest = Math.max(longest, minute - previous - 1);
@@ -345,12 +366,17 @@
       const drop = dropAt(history, time);
       if (drop !== null && drop >= SURGE) surges.push(time);
       while (surges.length && time - surges[0] > 90 * MIN) surges.shift();
-      if (recommendation === null && surges.length &&
-          decide(history, time, shows, null, drop, waveStart(surges), true).tone === 'go') recommendation = minute;
+      if (surges.length && (recommendation === null || firstRange === null)) {
+        const verdict = decide(history, time, shows, null, drop, waveStart(surges), true);
+        if (firstRange === null && verdict.lab === '예상 출발 범위') { firstRange = { minute, text: verdict.big }; firstOnset = waveStart(surges); }
+        if (recommendation === null && verdict.tone === 'go') recommendation = minute;
+      }
       points.push({ minute, drop });
     }
     const last = points.at(-1).minute;
-    return { points, longest, last, recommendation, base, shows };
+    const cleared = firstOnset === null ? null : clearedAt(samples, firstOnset);
+    return { points, longest, last, recommendation, firstRange, base, shows,
+      onset: firstOnset === null ? null : (firstOnset - base) / MIN, cleared: cleared === null ? null : (cleared - base) / MIN };
   }
   async function loadRecordIndex() {
     const results = await Promise.allSettled([
@@ -361,15 +387,32 @@
     if (!index) throw Error('record index unavailable');
     return index.value;
   }
+  function parseRecord(doc, day) {
+    const kind = doc.kind === 'reconstruction' ? 'reconstruction' : 'measured';
+    const base = Date.parse(day + 'T00:00:00+09:00');
+    const samples = Array.from(new Map((doc.samples || []).filter(s => Array.isArray(s) && Number.isInteger(s[0]) && s[0] >= 780 && s[0] <= 1470 && Number.isSafeInteger(s[1]) && (kind === 'reconstruction' || s[1] >= 0))).entries())
+      .sort((a, b) => a[0] - b[0]).map(([m, v]) => [base + m * MIN, v]);
+    return { kind, base, samples };
+  }
+  // What the app would have shown on a night, from samples available up to each minute (used by the recorder).
+  function nightLog(doc, day) {
+    const { base, samples } = parseRecord(doc, day);
+    if (samples.length < 6) return {};
+    const review = reviewNight(samples, base, showsForDay(doc.shows || [], day));
+    const hm = m => m === null ? null : String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    const out = {};
+    if (review.onset !== null) out.onset = hm(review.onset);
+    if (review.firstRange) out.firstRange = { at: hm(review.firstRange.minute), range: review.firstRange.text };
+    if (review.recommendation !== null) out.confirmed = hm(review.recommendation);
+    if (review.cleared !== null) out.cleared = hm(review.cleared);
+    return out;
+  }
   async function loadRecord(day) {
     if (!/^\d{4}-\d\d-\d\d$/.test(day || '')) return null;
     const file = day + '.json';
     const doc = day === RECONSTRUCTED_RECORD ? await fetchJSON('records/' + file)
       : await fetchJSON(RECORDS_MAIN + file, { timeout: 4000 }).catch(() => fetchJSON('records/' + file));
-    const kind = doc.kind === 'reconstruction' ? 'reconstruction' : 'measured';
-    const base = Date.parse(day + 'T00:00:00+09:00');
-    const samples = Array.from(new Map((doc.samples || []).filter(s => Array.isArray(s) && Number.isInteger(s[0]) && s[0] >= 780 && s[0] <= 1470 && Number.isSafeInteger(s[1]) && (kind === 'reconstruction' || s[1] >= 0))).entries())
-      .sort((a, b) => a[0] - b[0]).map(([m, v]) => [base + m * MIN, v]);
+    const { kind, base, samples } = parseRecord(doc, day);
     if (samples.length < 30) return null;
     const minuteOf = t => Math.round((t - base) / MIN);
     const first = minuteOf(samples[0][0]), last = minuteOf(samples.at(-1)[0]);
@@ -444,14 +487,15 @@
         if (t >= go - (crowded ? 2 : 0) * MIN) go = t + (crowded ? 5 : 3) * MIN;
         if (crowded && !isReplay) liveGo = null;
         // First estimate is a range: half of 2025 show nights (50/98) eased 30–65 min after the surge began.
-        const from = Math.max(onset + RANGE_FROM * MIN, t + (crowded ? 5 : 3) * MIN), to = onset + RANGE_TO * MIN;
+        const range = exitRange(shows, onset);
+        const from = Math.max(onset + range.from * MIN, t + (crowded ? 5 : 3) * MIN), to = onset + range.to * MIN;
         const ranged = to - from >= 5 * MIN;
         const head = crowded ? '조금 쉬었다 출발하세요' : '출차 흐름이 잦아들고 있어요';
         if (ranged)
           return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 범위',
             clock(from) + '~' + clock(to), '약 ' + Math.ceil((from - t) / MIN) + '~' + Math.ceil((to - t) / MIN) + '분 뒤',
             (crowded ? '주차 대수가 빠르게 줄고 있어요. ' : '혼잡이 누그러지고 있어요. ') +
-              '2025년 공연 밤 절반은 이 범위 안에 풀렸어요. 실제 흐름을 보고 출발 시각을 확정해요.', go, true);
+              range.note + ' 실제 흐름을 보고 출발 시각을 확정해요.', go, true);
         return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 시각', clock(go),
           '약 ' + Math.ceil((go - t) / MIN) + '분 뒤',
           crowded ? '평소보다 출차가 길게 이어지고 있어요. 줄어드는 속도가 잦아들 때까지 출발 시각을 늦춰 안내해요.' : '혼잡이 누그러지고 있어요. 관측값을 보고 출발 시각을 조정해요.', go, true);
@@ -621,5 +665,5 @@
     if (latestState) fn(latestState);
     return () => listeners.delete(fn);
   }
-  window.exitClock = { subscribe, start, live, replay, replayLatest, seek, togglePlay, refresh, selectShow, showKey, showsForDay, loadRecordIndex };
+  window.exitClock = { nightLog, subscribe, start, live, replay, replayLatest, seek, togglePlay, refresh, selectShow, showKey, showsForDay, loadRecordIndex };
 })();

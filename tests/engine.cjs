@@ -66,6 +66,12 @@ function show(day, tm, ndTm = '120분') {
   // first estimate is a range (surge +30..+65 min); 21:00 surge → 21:30~22:05
   assert.equal(ready.state().decision.big, '21:30~22:05');
   assert.equal(ready.state().decision.lab, '예상 출발 범위');
+  // 우리금융아트홀 nights use their own range (surge +15..+45 min)
+  const hall = await start({ time: '2026-11-27T21:00:00+09:00',
+    seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]],
+    rows: [{ ...show('2026-11-27', '19:00'), plc: '올림픽공원 우리금융아트홀' }] });
+  assert.equal(hall.state().decision.big, '21:15~21:45');
+  assert.match(hall.state().decision.tip, /우리금융아트홀/);
   // no show ending near this time (e.g. a weekday 22:00 blip) → no congestion alert
   const blip = await start({ time: '2026-11-27T22:05:00+09:00',
     seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]] });
@@ -127,6 +133,11 @@ function show(day, tm, ndTm = '120분') {
   const wave = await start({ time: '2026-11-28T12:00:00+09:00', record: { samples: night27.samples } });
   await wave.api.replay(undefined, '2026-11-27');
   assert.equal(wave.state().review.recommendation, 22 * 60 + 39);
+  assert.equal(wave.state().review.firstRange.text, '21:57~22:32');
+  // cleared = backtest rule: 5-min windows from the surge (21:27), two in a row under 25
+  assert.equal(wave.state().review.cleared, 22 * 60 + 42);
+  assert.deepEqual(JSON.parse(JSON.stringify(wave.api.nightLog(night27, '2026-11-27'))),
+    { onset: '21:27', firstRange: { at: '21:27', range: '21:57~22:32' }, confirmed: '22:39', cleared: '22:42' });
   for (let m = 23 * 60 + 22; m <= 23 * 60 + 35; m++) {
     wave.api.seek(m);
     assert.notEqual(wave.state().decision.tone, 'go', `second wave ${m}`);

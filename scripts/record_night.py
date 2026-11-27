@@ -57,7 +57,27 @@ def fetch():
     return int(value)
 
 
-def merge_and_push(day, shows, samples):
+def night_log(day, shows, samples):
+    """Ask engine.js what the app shows now (first range, confirmed time, cleared time)."""
+    try:
+        doc = {"day": day.isoformat(), "shows": shows, "samples": sorted([m, v] for m, v in samples.items())}
+        out = subprocess.run(["node", "scripts/night_log.cjs"], input=json.dumps(doc, ensure_ascii=False),
+                             capture_output=True, text=True, timeout=30, encoding="utf-8")
+        return json.loads(out.stdout) if out.returncode == 0 and out.stdout.strip() else {}
+    except Exception as e:  # never let logging stop the recording
+        print(f"판단 기록 실패 {type(e).__name__}")
+        return {}
+
+
+def log_decisions(log, now, verdict):
+    """Keep each decision the first time it appears, stamped with the wall-clock minute it was made."""
+    for key in ("onset", "firstRange", "confirmed", "cleared"):
+        if key in verdict and key not in log:
+            log[key] = {"value": verdict[key], "loggedAt": f"{now:%H:%M}"}
+            print(f"{now:%H:%M} 판단 기록 {key}: {verdict[key]}")
+
+
+def merge_and_push(day, shows, samples, decisions=None):
     path = pathlib.Path(f"records/{day.isoformat()}.json")
     for attempt in range(6):
         subprocess.run(["git", "fetch", "-q", "origin", "main"], check=True)
@@ -72,6 +92,13 @@ def merge_and_push(day, shows, samples):
             "shows": shows or old.get("shows", []),
             "samples": sorted([m, v] for m, v in merged.items()),
         }
+        # decisions made live on this night: keep whichever run logged each one first
+        logged = dict(old.get("decisions", {}))
+        for key, entry in (decisions or {}).items():
+            if key not in logged or entry["loggedAt"] < logged[key]["loggedAt"]:
+                logged[key] = entry
+        if logged:
+            doc["decisions"] = logged
         path.parent.mkdir(exist_ok=True)
         path.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         index_path = pathlib.Path("records/index.json")
@@ -105,6 +132,9 @@ def main():
         return
     print(f"{day}: " + " / ".join(s["title"] for s in shows))
     samples, errors = {}, 0
+    old_path = pathlib.Path(f"records/{day.isoformat()}.json")
+    known = {m: v for m, v in json.loads(old_path.read_text(encoding="utf-8")).get("samples", [])} if old_path.exists() else {}
+    decisions = {}
     deadline = min(start + dt.timedelta(minutes=RUN_MINUTES), stop)
     while True:
         t = now_kst()
@@ -113,13 +143,14 @@ def main():
             break
         try:
             samples[m] = fetch()
+            log_decisions(decisions, t, night_log(day, shows, {**known, **samples}))
         except Exception as e:
             errors += 1
             print(f"{t:%H:%M} 실패 {type(e).__name__}")
         time.sleep(60 - time.time() % 60 + 1)
     print(f"수집 {len(samples)}분, 실패 {errors}회")
     if samples:
-        merge_and_push(day, shows, samples)
+        merge_and_push(day, shows, samples, decisions)
     attempts = len(samples) + errors
     summary = f"주차 기록 {day}: 수집 {len(samples)}분 / 실패 {errors}회"
     if os.environ.get("GITHUB_STEP_SUMMARY"):
