@@ -1,4 +1,4 @@
-const CACHE = 'olpark-exit-clock-v43';
+const CACHE = 'olpark-exit-clock-v44';
 const SHELL = ['./', './index.html', './assets/pretendard.woff2', './data2024.js', './venues.js', './recent.js', './park-schedule.js', './engine.js', './exit-profile.js', './venue-params.json', './calendar.js', './flow-chart.js', './app.js', './style.css', './hero.webp', './icon.svg', './assets/icon-192.png', './assets/icon-512.png', './manifest.json', './schedule.json', './records/index.json', './records/2025-12-06.json'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -15,7 +15,8 @@ self.addEventListener('fetch', event => {
     const cache = await caches.open(CACHE);
     const key = event.request.mode === 'navigate' ? new URL('index.html', self.registration.scope).href : event.request;
     try {
-      const response = await fetch(event.request);
+      // GitHub Pages sends max-age=600; revalidate so a new deploy shows on the next load, not 10 minutes later.
+      const response = await fetch(event.request, { cache: 'no-cache' });
       if (response.ok && response.type === 'basic') await cache.put(key, response.clone());
       return response;
     } catch {
