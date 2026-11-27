@@ -60,9 +60,21 @@ function show(day, tm, ndTm = '120분') {
   const empty = await start({ time: '2026-11-27T21:00:00+09:00' });
   assert.equal(empty.state().decision.tone, 'wait');
   const ready = await start({ time: '2026-11-27T21:00:00+09:00',
-    seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]] });
+    seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]], rows: [show('2026-11-27', '19:00')] });
   assert.equal(ready.state().drop, 60);
   assert.equal(ready.state().decision.tone, 'jam');
+  // first estimate is a range (surge +30..+65 min); 21:00 surge → 21:30~22:05
+  assert.equal(ready.state().decision.big, '21:30~22:05');
+  assert.equal(ready.state().decision.lab, '예상 출발 범위');
+  // no show ending near this time (e.g. a weekday 22:00 blip) → no congestion alert
+  const blip = await start({ time: '2026-11-27T22:05:00+09:00',
+    seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]] });
+  assert.equal(blip.state().drop, 60);
+  assert.equal(blip.state().decision.tone, 'calm');
+  assert.equal(blip.state().decision.alarm, false);
+  const matinee = await start({ time: '2026-11-27T22:05:00+09:00',
+    seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]], rows: [show('2026-11-27', '15:00')] });
+  assert.equal(matinee.state().decision.tone, 'calm');
   await ready.tick(15000);
   assert.equal(ready.state().rate, 12);
   const six = await start({ time: '2026-11-27T21:00:00+09:00', seed: [[-6, 1200]] });

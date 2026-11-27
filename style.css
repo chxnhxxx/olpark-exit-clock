@@ -39,3 +39,6 @@ dialog{width:min(480px,calc(100% - 32px));max-height:84dvh;border:1px solid var(
 
 #nightReview{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}#nightReview summary{cursor:pointer;padding:10px 0;font-weight:650}#nightEvidence svg{display:block;width:100%;margin-top:10px}#nightEvidence ol{list-style:none;padding:0}#nightEvidence button{min-height:44px;text-align:start;color:var(--green);overflow-wrap:anywhere}#nightEvidence button:disabled{color:var(--muted)}
 #nightEvidence p.chart-note{background:none;border:0;border-radius:0;padding:4px 0;margin:0;line-height:1.55}
+
+.time-row.range-time #goTime{font-size:clamp(48px,4.7vw,66px);letter-spacing:-.06em}#goTime .range-sep{margin:0 .06em;font-weight:500;opacity:.75}
+@media(max-width:740px){.time-row.range-time #goTime{font-size:50px}}@media(max-width:400px){.time-row.range-time #goTime{font-size:43px}}

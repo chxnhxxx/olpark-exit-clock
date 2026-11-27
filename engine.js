@@ -8,6 +8,7 @@
   const SURGE = 60;
   const CALM = 25;
   const DURATION = 45;
+  const RANGE_FROM = 30, RANGE_TO = 65;
   const RECONSTRUCTED_RECORD = '2025-12-06';
   const RECORDS_MAIN = 'https://raw.githubusercontent.com/chxnhxxx/olpark-exit-clock/main/records/';
   const API = 'https://www.ksponco.or.kr/online/main/parkingorsApi.do?apiKey=PARKING21803504';
@@ -317,6 +318,17 @@
     while (i > 0 && times[i] - times[i - 1] <= 15 * MIN) --i;
     return times.length ? times[i] : null;
   }
+  // Exit surges count as show traffic only from 15 min before a show's end to 150 min after.
+  // false = no show near this time; null = a show today has no usable time, so don't suppress.
+  function nearShow(shows, t) {
+    let unknown = false;
+    for (const show of shows) {
+      const end = show.end ?? (show.start ? show.start + 120 * MIN : null);
+      if (end === null) { unknown = true; continue; }
+      if (t >= end - 15 * MIN && t <= end + 150 * MIN) return true;
+    }
+    return unknown ? null : false;
+  }
   function archiveSamples(end) {
     const limit = source.base + end * MIN;
     return source.samples.filter(s => s[0] <= limit);
@@ -418,6 +430,10 @@
       return result('wait', '관측 중', '출차 흐름을 확인하고 있어요', '', '', '',
         `주차 대수를 1분마다 받아 5분 변화를 계산해요. 약 ${left}분 뒤부터 안내해요. 화면을 오래 닫아 두면 처음부터 다시 모아요.`);
     }
+    const scheduleKnown = isReplay ? shows.length > 0 : scheduleDay === dayKey(t);
+    if (onset !== null && scheduleKnown && nearShow(shows, t) === false)
+      return result('calm', '공원 출차', '공연과 무관한 일시적 출차예요', '추천 출발', '지금', '',
+        '이 시간 앞뒤로 끝나는 공연이 없어요. 퇴근이나 시설 마감 무렵 잠깐 늘어난 출차로 보고 혼잡으로 안내하지 않아요.', t);
     if (onset !== null) {
       let go = onset + DURATION * MIN;
       const previous = dropAt(samples, t - 2 * MIN);
@@ -427,10 +443,18 @@
         const crowded = d >= SURGE;
         if (t >= go - (crowded ? 2 : 0) * MIN) go = t + (crowded ? 5 : 3) * MIN;
         if (crowded && !isReplay) liveGo = null;
-        return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중',
-          crowded ? '조금 쉬었다 출발하세요' : '출차 흐름이 잦아들고 있어요', '예상 출발 시각', clock(go),
+        // First estimate is a range: half of 2025 show nights (50/98) eased 30–65 min after the surge began.
+        const from = Math.max(onset + RANGE_FROM * MIN, t + (crowded ? 5 : 3) * MIN), to = onset + RANGE_TO * MIN;
+        const ranged = to - from >= 5 * MIN;
+        const head = crowded ? '조금 쉬었다 출발하세요' : '출차 흐름이 잦아들고 있어요';
+        if (ranged)
+          return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 범위',
+            clock(from) + '~' + clock(to), '약 ' + Math.ceil((from - t) / MIN) + '~' + Math.ceil((to - t) / MIN) + '분 뒤',
+            (crowded ? '주차 대수가 빠르게 줄고 있어요. ' : '혼잡이 누그러지고 있어요. ') +
+              '2025년 공연 밤 절반은 이 범위 안에 풀렸어요. 실제 흐름을 보고 출발 시각을 확정해요.', go, true);
+        return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 시각', clock(go),
           '약 ' + Math.ceil((go - t) / MIN) + '분 뒤',
-          crowded ? '주차 대수가 빠르게 줄고 있어요. 출차가 몰리는 시간이에요.' : '혼잡이 누그러지고 있어요. 관측값을 보고 출발 시각을 조정해요.', go, true);
+          crowded ? '평소보다 출차가 길게 이어지고 있어요. 줄어드는 속도가 잦아들 때까지 출발 시각을 늦춰 안내해요.' : '혼잡이 누그러지고 있어요. 관측값을 보고 출발 시각을 조정해요.', go, true);
       }
       if (!isReplay) liveGo = onset;
       return result('go', '출발 권장', '지금 출발하기 좋아요', '추천 출발', '지금', '출차 집중 구간이 지났어요', '5분간 주차 대수 감소폭이 혼잡 기준 아래로 내려왔어요.', t);
@@ -455,7 +479,7 @@
       .sort((a, b) => a.start - b.start)[0];
     if (!selectedShow && upcoming)
       return result('show', '공연 전', '오늘 공연이 아직 시작 전이에요', '첫 공연 시작', clock(upcoming.start), '',
-        '현재 대량 출차 신호가 없어요. 공연 중에도 주차 흐름을 계속 확인해요.');
+        '현재 대량 출차 신호가 없어요. 빨리 나가려면 남2문 주차장이 좋아요. 2025년 공연 밤 98일 중 81일은 동2문보다 15~20분 먼저 풀렸어요.');
     if (noShowDay)
       return result('calm', '평소 수준', '지금 출발하기 좋아요', '추천 출발', '지금', '',
         '오늘 등록된 공연이 없고, 최근 5분간 대량 출차 신호도 없어요. 주차 흐름을 계속 확인해요.', t);

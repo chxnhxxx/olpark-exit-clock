@@ -301,8 +301,11 @@
     const hasTime = !!d.big;
     $('timeLabel').textContent = hasTime ? (s.selectedShow && d.lab === '예상 종료' ? '내 공연 종료 예정' : d.lab) : '예상 출발 시각';
     const approx = /^약 (\d{1,2}:\d\d)$/.exec(d.big || '');
+    const range = /^(\d{1,2}:\d\d)~(\d{1,2}:\d\d)$/.exec(d.big || '');
     if (approx) $('goTime').replaceChildren(el('span', 'approx', '약'), approx[1]);
+    else if (range) $('goTime').replaceChildren(range[1], el('span', 'range-sep', '~'), range[2]);
     else $('goTime').textContent = d.big || '확인 중';
+    $('goTime').parentNode.classList.toggle('range-time', !!range);
     $('goTime').parentNode.classList.toggle('text-time', !d.big || !(approx || /^\d/.test(d.big)));
     $('remaining').hidden = !d.after || !/^약/.test(d.after);
     $('remaining').textContent = d.after || '';
