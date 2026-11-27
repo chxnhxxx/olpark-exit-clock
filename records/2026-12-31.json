@@ -1,1 +1,0 @@
-{"day":"2026-12-31","source":"한국체육산업개발 실시간 주차현황 API(parkingorsApi.do), 세 주차장 합계, GitHub Actions에서 1분 간격 수집","unit":"samples = [그날 0시부터 지난 분, 주차 중 대수]","shows":[{"title":"밤 공연"}],"samples":[],"forecast":{"loggedAt":"2027-01-01 00:30","basis":"공식 일정 종료 + 공연장별 출차 지연, 2025 공연장별 범위","items":{}}}
