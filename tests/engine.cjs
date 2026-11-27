@@ -93,6 +93,12 @@ function show(day, tm, ndTm = '120분') {
     seed: [[-6, 2000], [-5, 1990], [-4, 1980], [-3, 1970], [-2, 1960], [-1, 1950]], parking: 1945, rows: [show('2026-11-27', '19:00')] });
   assert.equal(late.state().decision.big, '확인 중');
   assert.match(late.state().decision.tip, /남아 있어요/);
+  // matinee ended and the evening crowd is arriving: net drop stays low, but don't say "now"
+  const turnover = await start({ time: '2026-11-27T16:50:00+09:00',
+    seed: Array.from({ length: 40 }, (_, i) => [i - 40, 3000 - i * 4]), parking: 2840,
+    rows: [show('2026-11-27', '14:00'), { ...show('2026-11-27', '18:00'), evtSeq: 2, title: '저녁 공연', plc: '올림픽홀' }] });
+  assert.equal(turnover.state().decision.big, '확인 중');
+  assert.equal(turnover.state().decision.chip, '공연 교대 시간');
   const matinee = await start({ time: '2026-11-27T22:05:00+09:00',
     seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]], rows: [show('2026-11-27', '15:00')] });
   assert.equal(matinee.state().decision.tone, 'calm');

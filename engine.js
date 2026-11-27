@@ -597,6 +597,16 @@
         return result('soon', '흐름 확인 중', '출차 흐름을 확인하고 있어요', '추천 출발', '확인 중', '',
           (parked !== null && parked >= 300 ? `주차장에 아직 약 ${comma(Math.round(parked / 10) * 10)}대가 남아 있어요. ` : '') +
           '화면을 켜기 전에 출차가 시작됐을 수 있어 바로 출발을 권하지 않아요. 몇 분만 지켜보면 알려 드려요.');
+      // Turnover: a big-venue show has ended and another show starts within 3 h. Incoming evening cars hide the exits
+      // in the net count (2025: 4 of 12 such days never reached the surge level while gates let out 70–100 cars per 5 min).
+      const ended = shows.find(show => show.end === end);
+      const turnover = !selectedShow && ended && /KSPO|올림픽홀|핸드볼|티켓링크/.test(ended.plc || '') &&
+        shows.some(show => show !== ended && show.start && show.start > end - 60 * MIN && show.start <= end + 180 * MIN);
+      if (turnover && t <= end + 90 * MIN)
+        return result('soon', '공연 교대 시간', '출구는 실제로 더 붐빌 수 있어요', '추천 출발', '확인 중', '',
+          '낮 공연이 끝나고 다음 공연 관객이 들어오는 시간이라, 주차 대수 합계로는 나가는 차가 덜 보여요. ' +
+          '2025년 이런 날 12일 중 4일은 출구로 5분에 70~100대가 나가는데도 감소폭이 혼잡 기준에 못 미쳤어요. ' +
+          '공연 종료 뒤 약 1시간은 출구가 붐빌 수 있어요.');
       return result('soon', '공연 종료 후', '곧 출차가 몰릴 수 있어요', '추천 출발', '지금', '공연 종료 후 집중 구간', '아직 대량 출차 신호가 없어요. 종료 후 흐름이 빠르게 바뀔 수 있어요.', t);
     }
     const upcoming = shows.filter(show => show.start && show.start > t && (show.start - t < 6 * 60 * MIN || dayKey(show.start) === dayKey(t)))
