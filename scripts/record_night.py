@@ -190,6 +190,9 @@ def save_floor(t):
     sys.exit("push failed")
 
 
+CHAIN_MAX = 330  # one job may run 6 h; leave room for checkout and push
+
+
 def main():
     start = now_kst()
     if 4 <= start.hour < 8:
@@ -226,6 +229,11 @@ def main():
     print(f"수집 {len(samples)}분, 실패 {errors}회")
     if samples:
         merge_and_push(day, shows, samples, decisions)
+    # Chain the next run ourselves: GitHub's scheduled runs are often skipped, so a show night must not depend on them.
+    left = int((stop - t).total_seconds() // 60)  # t: last loop clock reading
+    if left > 5 and os.environ.get("GITHUB_OUTPUT"):
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+            out.write(f"next_minutes={min(left, CHAIN_MAX)}\n")
     attempts = len(samples) + errors
     summary = f"주차 기록 {day}: 수집 {len(samples)}분 / 실패 {errors}회"
     if os.environ.get("GITHUB_STEP_SUMMARY"):

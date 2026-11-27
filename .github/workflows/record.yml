@@ -15,6 +15,11 @@ on:
         default: '0'
 permissions:
   contents: write
+  actions: write
+# One run at a time; a run that arrives while another records waits and then continues the night.
+concurrency:
+  group: record-night
+  cancel-in-progress: false
 jobs:
   record:
     runs-on: ubuntu-latest
@@ -22,6 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: 1분 간격 주차 대수 기록
+        id: rec
         env:
           RUN_MINUTES: ${{ inputs.minutes || '40' }}
           FORCE: ${{ inputs.force || '0' }}
@@ -29,3 +35,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           python scripts/record_night.py
+      - name: 다음 기록 이어 걸기
+        if: always() && steps.rec.outputs.next_minutes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/workflows/record.yml/dispatches" \
+            -f ref=main -f "inputs[minutes]=${{ steps.rec.outputs.next_minutes }}"
+          echo "다음 기록 ${{ steps.rec.outputs.next_minutes }}분 예약" >> "$GITHUB_STEP_SUMMARY"

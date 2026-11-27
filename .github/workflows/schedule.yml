@@ -35,12 +35,14 @@ jobs:
         id: ticket
         run: python scripts/ticket_runtime.py
         continue-on-error: true
+      - name: 기관 주차 안내의 공연 소요시간 반영
+        run: python scripts/official_runtime.py
       - name: 바뀌었으면 커밋
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add schedule.json $(ls kopis_report.md 2>/dev/null)
           git diff --cached --quiet || (git commit -m "공연 일정 갱신" && (git push || (git pull -q --rebase origin main && git push)))
-      - name: 공연정보 보강 실패 표시
+      - name: 공연정보 보강 경고
         if: steps.enrich.outcome == 'failure' || steps.kopis.outcome == 'failure' || steps.ticket.outcome == 'failure'
-        run: exit 1
+        run: echo "::warning::공연정보 보강 단계 일부가 실패했어요. 기관 공연 일정은 저장됐어요." 

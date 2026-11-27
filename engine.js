@@ -12,9 +12,9 @@
   // Only 우리금융아트홀 beat the shared range (inside range 7→19 of 25 nights); KSPO DOME and 올림픽홀 did
   // not (15/28 vs 19/28, 11/21 vs 13/21), so they keep the shared 30–65.
   const EXIT_RANGES = [
-    { match: /우리금융/, from: 15, to: 45, note: '2025년 우리금융아트홀 공연 밤 절반이 이 범위 안에 풀렸어요.' },
+    { match: /우리금융/, from: 15, to: 45, note: '2025년 우리금융아트홀 공연 밤 25일 중 19일이 이 범위 안에 풀렸어요.' },
   ];
-  const SHARED_RANGE = { from: 30, to: 65, note: '2025년 공연 밤 절반은 이 범위 안에 풀렸어요.' };
+  const SHARED_RANGE = { from: 30, to: 65, note: '2025년 저녁 공연 98일 중 50일이 이 범위 안에 풀렸어요.' };
   // Queue estimate, fitted on the 2025 backtest (98 show nights, leave-one-out: inside ±17.5 min 71/98 vs 62/98
   // for the ranges above, mean error 13.9 vs 20.4 min). minutes to clear = A + P·cars parked + O·first-15-min outflow.
   // cars parked = count at the surge − the morning floor; a later show whose cars only start leaving more than
@@ -229,6 +229,7 @@
         const start = slot === null ? null : midnight + slot.start * MIN;
         const explicitEnd = slot?.end === null || slot?.end === undefined ? null : midnight + slot.end * MIN;
         const endBasis = explicitEnd ? '공식 일정의 종료 시각' : !published ? '일반 러닝타임 추정' :
+          /^기관 주차/.test(item.ndTmSource || '') ? '기관 주차 안내의 공연 소요시간' :
           /^NOL티켓/.test(item.ndTmSource || '') ? 'NOL티켓의 공연 소요시간' :
           /^KOPIS/.test(item.ndTmSource || '') ? '공연예술통합전산망의 공연 소요시간' : '공식 일정의 공연 소요시간';
         const show = { evtSeq: item.evtSeq ?? null, title: item.title.normalize('NFKC').replace(/\s+/g, ' ').trim(), plc: item.plc.trim(),
@@ -495,7 +496,7 @@
       [lastEnd > steps[0] ? '종료 전' : '감지 전', '출차 집중', review.recommendation === null ? '이후' : '첫 권장'];
     const [y, m, d] = day.split('-');
     return { id: day, kind, floor, label: `${y}.${m}.${d}(${DAYS[new Date(base + 12 * 3600000).getUTCDay()]}) ${kind === 'reconstruction' ? '입출차 재현 · 부분 자료' : '실측 기록'}`,
-      base, first, last, start: onset === null ? steps[1] : clamp(onset + 10), steps, labels, samples, shows, review };
+      base, first, last, start: onset === null ? steps[1] : clamp(onset + 15), steps, labels, samples, shows, review };
   }
   function rates(samples, end) {
     if (samples.length < 2) return [];
