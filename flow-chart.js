@@ -127,13 +127,13 @@
 
   function draw(state) {
     const { element: svg, data } = state;
-    const { now, demo, go } = data;
+    const { now, demo, go, range } = data;
     state.width = Math.round(svg.getBoundingClientRect().width);
     const width = Math.max(180, state.width || 420);
     const height = width < 440 ? 198 : 226;
     const left = 30, right = width - 10, top = 36, bottom = height - 30;
     const start = now - 30 * MINUTE;
-    const end = Math.max(now + 30 * MINUTE, go > now ? go + 5 * MINUTE : 0);
+    const end = Math.max(now + 30 * MINUTE, range ? range[1] + 5 * MINUTE : go > now ? go + 5 * MINUTE : 0);
     const past = data.series.filter(p => p.t >= start && p.t <= now);
     const future = data.forecast.filter(p => p.t >= now && p.t <= end);
     const observed = past.filter(valid);
@@ -188,7 +188,13 @@
     }
     segments.push(`<path d="M${xn},25V${bottom}" fill="none" stroke="${color.real}" opacity=".58" stroke-dasharray="3 4"/>`,
       label(xn, 17, `지금 ${time(now)}`, 'middle', color.real, 700));
-    if (go > now && ticks.length) {
+    if (range && ticks.length) {
+      // Same range as the first screen: a band, not a single time.
+      const rx = x(Math.max(range[0], now)), rw = fixed(x(range[1]) - rx);
+      segments.push(`<rect x="${rx}" y="${top}" width="${rw}" height="${bottom - top}" fill="${color.real}" opacity=".10"/>`);
+      const labelX = Math.min(Math.max(rx + rw / 2, xn + 90), right - 52);
+      segments.push(label(labelX, 17, `출발 예상 ${time(range[0])}~${time(range[1])}`, 'middle', color.ink, 650));
+    } else if (go > now && ticks.length) {
       const gx = x(go);
       segments.push(`<path d="M${gx},${top}V${bottom}" fill="none" stroke="${color.muted}" opacity=".5" stroke-dasharray="2 4"/>`);
       const labelX = Math.min(gx, right - 42);
@@ -200,8 +206,8 @@
     if (ticks.length) {
       // Keep the threshold annotation legible without coloring the data itself.
       // Put the label where no observed or forecast line passes through it.
-      const narrow = right - left < 300, thresholdText = narrow ? "기준 12대/분" : "혼잡 기준 12대/분";
-      const ty = y(12), w = narrow ? 70 : 100, pts = [...observed, ...projected].map(p => [x(p.t), y(p.r)]).sort((a, b) => a[0] - b[0]);
+      const narrow = right - left < 300, thresholdText = narrow ? "기준 12대/분" : "혼잡 기준 12대/분 (5분 60대)";
+      const ty = y(12), w = narrow ? 70 : 150, pts = [...observed, ...projected].map(p => [x(p.t), y(p.r)]).sort((a, b) => a[0] - b[0]);
       const lineY = px => { for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; if (px >= x0 && px <= x1) return x1 === x0 ? y1 : y0 + (y1 - y0) * (px - x0) / (x1 - x0); } return null; };
       const clear = (x0, top0, bot0) => { for (let px = x0; px <= x0 + w; px += 3) { const ly = lineY(px); if (ly !== null && ly > top0 - 10 && ly < bot0 + 10) return false; } return true; };
       // Try spots from the right edge leftward, above then below the line; keep the first clear one.
@@ -234,11 +240,11 @@
     }
   }
 
-  window.renderExitChart = ({ element, series = [], forecast = [], now, go = null, demo = false }) => {
+  window.renderExitChart = ({ element, series = [], forecast = [], now, go = null, range = null, demo = false }) => {
     if (!element || !Number.isFinite(now)) return;
     const state = states.get(element) || wire(element);
     if (state.data?.demo !== demo) state.active = null;
-    state.data = { series, forecast, now, go, demo };
+    state.data = { series, forecast, now, go, range, demo };
     draw(state);
   };
 })();

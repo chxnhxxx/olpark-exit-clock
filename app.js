@@ -347,7 +347,7 @@
     $('forecastLegend').hidden = !s.forecast.length;
     $('chartNote').textContent = (reconstructed ? '받은 입출차 기록의 변화량을 재현했어요. 그래프 단위는 대/분이에요.' :
       '동2·남2·북2문 합계 · 입차와 출차가 함께 반영돼요. 그래프 단위는 대/분이에요.') + (s.forecast.length ? ' 점선은 예상값이에요.' : '');
-    window.renderExitChart({ element: $('flowChart'), series: s.series, forecast: s.forecast, now: s.time, go: d.go, demo: s.demo });
+    window.renderExitChart({ element: $('flowChart'), series: s.series, forecast: s.forecast, now: s.time, go: d.go, range: d.range || null, demo: s.demo });
     if (previous && previous.decision.tone !== d.tone) $('announce').textContent = d.head + '. ' + d.lab + ' ' + d.big;
   }
 

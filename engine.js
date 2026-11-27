@@ -563,11 +563,11 @@
         const ranged = to - from >= 5 * MIN;
         const head = crowded ? '조금 쉬었다 출발하세요' : '출차 흐름이 잦아들고 있어요';
         if (ranged)
-          return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 범위',
+          return { ...result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 범위',
             clock(from) + '~' + clock(to), '약 ' + Math.ceil((from - t) / MIN) + '~' + Math.ceil((to - t) / MIN) + '분 뒤',
             (queue ? '' : crowded ? '주차 대수가 빠르게 줄고 있어요. ' : '혼잡이 누그러지고 있어요. ') +
               range.note + (shows.some(x => x.festival) ? ' 축제는 무대별로 끝나 출차가 여러 번 올 수 있어요.' : '') +
-              ' 실제 흐름을 보고 출발 시각을 확정해요.', go, true);
+              ' 실제 흐름을 보고 출발 시각을 확정해요.', go, true), range: [from, to] };
         return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 시각', clock(go),
           '약 ' + Math.ceil((go - t) / MIN) + '분 뒤',
           crowded ? '평소보다 출차가 길게 이어지고 있어요. 줄어드는 속도가 잦아들 때까지 출발 시각을 늦춰 안내해요.' : '혼잡이 누그러지고 있어요. 관측값을 보고 출발 시각을 조정해요.', go, true);
@@ -631,12 +631,15 @@
     if (onset === null || !['jam', 'easing', 'go'].includes(decision.tone)) return [];
     const recent = series.filter(p => p.r !== null).slice(-8);
     if (!recent.length) return [];
-    const modeled = recent.reduce((sum, p) => sum + pattern((p.t - onset) / MIN), 0);
+    // Stretch the 2024 curve (eased ~45 min after the surge) so it eases at the middle of the range on screen.
+    const stretch = decision.range ? Math.max(0.6, Math.min(2.5, ((decision.range[0] + decision.range[1]) / 2 - onset) / MIN / DURATION)) : 1;
+    const shape = minutes => pattern(minutes / stretch);
+    const modeled = recent.reduce((sum, p) => sum + shape((p.t - onset) / MIN), 0);
     const observed = recent.reduce((sum, p) => sum + p.r, 0);
     const scale = modeled > 0.5 * recent.length ? Math.max(0.5, Math.min(2, observed / modeled)) : 1;
-    const count = Math.ceil(Math.max(30, (decision.go - time) / MIN + 6));
+    const count = Math.ceil(Math.max(30, ((decision.range?.[1] ?? decision.go) - time) / MIN + 6));
     return Array.from({ length: count + 1 }, (_, i) => {
-      const base = pattern((time - onset) / MIN + i) * scale;
+      const base = shape((time - onset) / MIN + i) * scale;
       return { t: time + i * MIN, r: i < 4 ? recent.at(-1).r + (base - recent.at(-1).r) * i / 4 : base };
     });
   }
