@@ -310,6 +310,13 @@
     const delta = Math.round((a[1] - b[1]) * 5 * MIN / (b[0] - a[0]));
     return Math.abs(delta) <= 400 ? delta : null;
   }
+  // A second exit wave (e.g. a later show ending) starts its own onset instead of reusing
+  // the first wave's, so a stale onset can't flip the screen to "go" mid-surge.
+  function waveStart(times) {
+    let i = times.length - 1;
+    while (i > 0 && times[i] - times[i - 1] <= 15 * MIN) --i;
+    return times.length ? times[i] : null;
+  }
   function archiveSamples(end) {
     const limit = source.base + end * MIN;
     return source.samples.filter(s => s[0] <= limit);
@@ -327,7 +334,7 @@
       if (drop !== null && drop >= SURGE) surges.push(time);
       while (surges.length && time - surges[0] > 90 * MIN) surges.shift();
       if (recommendation === null && surges.length &&
-          decide(history, time, shows, null, drop, surges[0], true).tone === 'go') recommendation = minute;
+          decide(history, time, shows, null, drop, waveStart(surges), true).tone === 'go') recommendation = minute;
       points.push({ minute, drop });
     }
     const last = points.at(-1).minute;
@@ -489,7 +496,7 @@
     const selectedShow = shows.find(show => showKey(show) === selectedKey) || null;
     const end = samples.at(-1)?.[0], fresh = end && time - end <= 5 * MIN;
     const drop = fresh ? dropAt(samples, end) : null;
-    const onset = samples.find(s => time - s[0] <= 90 * MIN && dropAt(samples, s[0]) >= SURGE)?.[0] ?? null;
+    const onset = waveStart(samples.filter(s => time - s[0] <= 90 * MIN && s[0] <= time && dropAt(samples, s[0]) >= SURGE).map(s => s[0]));
     const baseline = drop === null ? null : sampleAt(samples, end - 5 * MIN);
     const observedChange = baseline ? samples.at(-1)[1] - baseline[1] : null;
     const observedMinutes = baseline ? Math.round((end - baseline[0]) / MIN) : null;

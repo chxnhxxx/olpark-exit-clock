@@ -110,6 +110,15 @@ function show(day, tm, ndTm = '120분') {
     assert.fail('expected a recommendation');
   }
   assert.equal(await firstGo(signal),await firstGo([...signal,[1470,400]]));
+  // 2026-11-27 measured night: a second exit wave (23:22) must not reuse the first wave's onset.
+  const night27 = JSON.parse(fs.readFileSync('records/2026-11-27.json', 'utf8'));
+  const wave = await start({ time: '2026-11-28T12:00:00+09:00', record: { samples: night27.samples } });
+  await wave.api.replay(undefined, '2026-11-27');
+  assert.equal(wave.state().review.recommendation, 22 * 60 + 39);
+  for (let m = 23 * 60 + 22; m <= 23 * 60 + 35; m++) {
+    wave.api.seek(m);
+    assert.notEqual(wave.state().decision.tone, 'go', `second wave ${m}`);
+  }
   const beforeGap = replay.state().series.filter(p => p.t <= Date.parse('2026-11-27T19:29:00+09:00') && p.r !== null);
   assert(beforeGap.length > 0);
   assert(beforeGap.every(p => p.r === 0));
