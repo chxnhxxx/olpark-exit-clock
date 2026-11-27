@@ -38,9 +38,7 @@
         <a class="recent-official" target="_blank" rel="noopener noreferrer">공식 공연 일정 ↗</a>
       </div>
       <div class="recent-playback">
-        <div class="recent-stage-line"><div><p class="recent-label"></p><strong class="recent-time"></strong></div>
-          <button type="button" class="recent-play" aria-pressed="false"></button>
-        </div>
+        <div class="recent-stage-line"><div><p class="recent-label"></p><strong class="recent-time"></strong></div></div>
         <div class="recent-steps" role="group" aria-label="공연 타임라인 장면"></div>
         <p class="recent-copy"></p>
       </div>
@@ -60,11 +58,9 @@
     .recent-official{color:var(--green);text-decoration:underline;text-underline-offset:4px;display:inline-block;padding:7px 0}
     .recent-choice{display:block;font-size:14px;color:var(--muted);margin:8px 0}
     .recent-choice select{display:block;width:100%;max-width:100%;margin-top:5px;min-height:44px;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--stroke);border-radius:8px;padding:6px}
-    .recent-stage-line,.recent-play{display:flex;align-items:center}
+    .recent-stage-line{display:flex;align-items:center}
     .recent-stage-line{justify-content:space-between;gap:12px}
     .recent-time{font-variant-numeric:tabular-nums;font-size:clamp(23px,3vw,32px);letter-spacing:-.04em;line-height:1.3}
-    .recent-play{gap:6px;min-height:44px;padding:6px 12px;background:var(--soft);color:var(--green);font-size:14px;font-weight:650;border-radius:8px;flex-shrink:0}
-    .recent-play .ico{width:15px;height:15px}
     .recent-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:15px}
     .recent-steps button{position:relative;min-height:44px;padding:11px 1px 3px;color:var(--muted);font-size:14px;text-align:start;border-radius:2px}
     .recent-steps button::before{content:'';position:absolute;inset:0 0 auto;height:5px;border-radius:3px;background:var(--line)}
@@ -126,10 +122,6 @@
     q('.recent-time').textContent = time;
     q('.recent-copy').textContent = description;
     [...q('.recent-steps').children].forEach((button, i) => button.setAttribute('aria-pressed', String(stage === i)));
-    const play = q('.recent-play');
-    play.innerHTML = icon(timer ? 'pause' : 'play') + (timer ? '일시정지' : '재생');
-    play.setAttribute('aria-label', timer ? '공연 타임라인 일시정지' : '공연 타임라인 재생');
-    play.setAttribute('aria-pressed', String(Boolean(timer)));
   }
   window.exitProfile.ready.then(renderStage);
 
@@ -166,7 +158,18 @@
     const url = new URL(location.href);
     url.searchParams.set('demo', '1'); url.searchParams.set('record', show.day); url.searchParams.delete('at');
     try { history.replaceState(null, '', url); } catch {}
+    following = show;
     window.exitClock.replay(undefined, show.day).then(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  });
+  // While that night replays, the timeline bar follows the replay clock (one play action for the whole card).
+  let following = null;
+  window.exitClock?.subscribe?.(state => {
+    if (!following) return;
+    if (!state.demo || performances[select.selectedIndex] !== following) { following = null; return; }
+    const t = state.time, show = following;
+    const next = !Number.isFinite(show.start) || t < show.start ? 0
+      : !Number.isFinite(show.end) || t < show.end ? 1 : t < show.end + 15 * MIN ? 2 : 3;
+    if (next !== stage) { stage = next; renderStage(); }
   });
   function renderShow() {
     const show = performances[select.selectedIndex];
@@ -184,22 +187,10 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = text;
-    button.addEventListener('click', () => { pause(); stage = index; renderStage(); });
+    button.addEventListener('click', () => { pause(); following = null; stage = index; renderStage(); });
     q('.recent-steps').append(button);
   }
-  select.addEventListener('change', () => { pause(); stage = 1; renderShow(); });
-  q('.recent-play').addEventListener('click', () => {
-    if (timer) pause();
-    else {
-      if (stage === steps.length - 1) stage = 0;
-      timer = setInterval(() => {
-        ++stage;
-        if (stage === steps.length - 1) pause();
-        renderStage();
-      }, 3200);
-    }
-    renderStage();
-  });
+  select.addEventListener('change', () => { pause(); following = null; stage = 1; renderShow(); });
 
   async function load() {
     if (loading) return;
