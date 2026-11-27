@@ -35,8 +35,6 @@ jobs:
         id: ticket
         run: python scripts/ticket_runtime.py
         continue-on-error: true
-      - name: 기관 주차 안내의 공연 소요시간 반영
-        run: python scripts/official_runtime.py
       - name: 바뀌었으면 커밋
         run: |
           git config user.name "github-actions[bot]"

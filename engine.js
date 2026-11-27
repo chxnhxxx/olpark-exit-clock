@@ -229,7 +229,6 @@
         const start = slot === null ? null : midnight + slot.start * MIN;
         const explicitEnd = slot?.end === null || slot?.end === undefined ? null : midnight + slot.end * MIN;
         const endBasis = explicitEnd ? '공식 일정의 종료 시각' : !published ? '일반 러닝타임 추정' :
-          /^기관 주차/.test(item.ndTmSource || '') ? '기관 주차 안내의 공연 소요시간' :
           /^NOL티켓/.test(item.ndTmSource || '') ? 'NOL티켓의 공연 소요시간' :
           /^KOPIS/.test(item.ndTmSource || '') ? '공연예술통합전산망의 공연 소요시간' : '공식 일정의 공연 소요시간';
         const show = { evtSeq: item.evtSeq ?? null, title: item.title.normalize('NFKC').replace(/\s+/g, ' ').trim(), plc: item.plc.trim(),
