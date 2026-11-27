@@ -32,9 +32,9 @@
 | 2026-12-25 | 티켓링크 라이브 아레나 | 2026 CRUSH CONCERT [CRUSH H♥ | CRUSH CONCERT: CRUSH H♥UR | 1.00 | 120분 | 2시간 |
 | 2026-12-24 | 올림픽홀 | 2026 박진영 콘서트 〈WET〉 | 박진영 콘서트: WET | 1.00 | (없음) | (없음) |
 | 2026-12-24 | KSPO DOME | 2026 THE BOYZ CONCERT : ZENE | THE BOYZ CONCERT: ZENERATION | 1.00 |  120분 | 2시간 |
-| 2026-12-18 | 티켓링크 라이브 아레나 | 2026 XIA Musical Concert wit | XIA Musical Concert with Orc | 1.00 | (없음) | 2시간 |
 | 2026-12-18 | 올림픽홀 | 자우림 단독 콘서트 ［ MIDNIGHT EXPRES | 자우림 단독 콘서트: MIDNIGHT EXPRESS | 1.00 | 120분 | 2시간 |
 | 2026-12-18 | KSPO DOME | 2026 DAY6 Special Concert ‘T | DAY6 Special Concert: The Pr | 1.00 | (없음) | (없음) |
+| 2026-12-18 | 티켓링크 라이브 아레나 | 2026 XIA Musical Concert wit | XIA Musical Concert with Orc | 1.00 | (없음) | 2시간 |
 | 2026-12-12 | KSPO DOME | 2026 DAVICHI CONCERT 〈IN OUR | DAVICHI CONCERT: IN OUR SCEN | 1.00 | 120분 | 2시간 |
 | 2026-12-11 | 올림픽홀 | 2026 박지현 팬콘서트 〈멤버쉽 시즌2：2026  | 박지현 팬콘서트, 멤버쉽 시즌2: 박지현 어워즈 [ | 1.00 | 총 120분 | 2시간 |
 | 2026-12-05 | 올림픽홀 | 2026 비 (RAIN) CONCERT [THE S | 비 (RAIN) 콘서트: THE SMOKE | 0.50 |  총 120분 | 2시간 |
