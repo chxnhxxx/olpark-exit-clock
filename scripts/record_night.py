@@ -57,10 +57,22 @@ def fetch():
     return int(value)
 
 
+def morning_floor(day, old=None):
+    path = pathlib.Path("records/floor.json")
+    if path.exists():
+        floor = json.loads(path.read_text(encoding="utf-8"))
+        for h in floor.get("history", []):
+            if h.get("day") == day.isoformat():
+                return h["count"]
+    return (old or {}).get("floor")
+
+
 def night_log(day, shows, samples):
     """Ask engine.js what the app shows now (first range, confirmed time, cleared time)."""
     try:
         doc = {"day": day.isoformat(), "shows": shows, "samples": sorted([m, v] for m, v in samples.items())}
+        if (floor := morning_floor(day)) is not None:
+            doc["floor"] = floor
         out = subprocess.run(["node", "scripts/night_log.cjs"], input=json.dumps(doc, ensure_ascii=False),
                              capture_output=True, text=True, timeout=30, encoding="utf-8")
         return json.loads(out.stdout) if out.returncode == 0 and out.stdout.strip() else {}
@@ -90,6 +102,7 @@ def merge_and_push(day, shows, samples, decisions=None):
             "source": "한국체육산업개발 실시간 주차현황 API(parkingorsApi.do), 세 주차장 합계, GitHub Actions에서 1분 간격 수집",
             "unit": "samples = [그날 0시부터 지난 분, 주차 중 대수]",
             "shows": shows or old.get("shows", []),
+            **({"floor": f} if (f := morning_floor(day, old)) is not None else {}),
             "samples": sorted([m, v] for m, v in merged.items()),
         }
         # decisions made live on this night: keep whichever run logged each one first
@@ -119,8 +132,35 @@ def merge_and_push(day, shows, samples, decisions=None):
     sys.exit("push failed")
 
 
+def save_floor(t):
+    """Once each morning: the API count with the lots empty, used by the app as the queue floor."""
+    count = fetch()
+    path = pathlib.Path("records/floor.json")
+    for attempt in range(6):
+        subprocess.run(["git", "fetch", "-q", "origin", "main"], check=True)
+        subprocess.run(["git", "reset", "-q", "--hard", "origin/main"], check=True)
+        old = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        history = [h for h in old.get("history", []) if h.get("day") != t.date().isoformat()][-13:]
+        entry = {"day": t.date().isoformat(), "at": f"{t:%H:%M}", "count": count}
+        doc = {**entry, "note": "05시 무렵 실시간 주차 대수(주차장이 거의 빈 시각). 출차 대기열 계산의 기준값", "history": history + [entry]}
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        subprocess.run(["git", "add", str(path)], check=True)
+        if subprocess.run(["git", "diff", "--cached", "--quiet"]).returncode == 0:
+            return
+        subprocess.run(["git", "commit", "-q", "-m", f"아침 기준 주차 대수 {entry['day']}"], check=True)
+        if subprocess.run(["git", "push", "-q", "origin", "HEAD:main"]).returncode == 0:
+            print(f"floor {count} saved")
+            return
+        time.sleep(5 + attempt * 5)
+    sys.exit("push failed")
+
+
 def main():
     start = now_kst()
+    if 4 <= start.hour < 8:
+        save_floor(start)
+        return
     day = record_day(start)
     stop = dt.datetime.combine(day + dt.timedelta(days=1), dt.time(0, 31), KST)
     if start >= stop:

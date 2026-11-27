@@ -3,6 +3,8 @@ on:
   schedule:
     # 13:00~00:30 KST, every 30 minutes. Each run records ~40 minutes so delayed runs still overlap.
     - cron: '0,30 4-15 * * *'
+    # 05:00 KST: one morning sample with the lots empty (queue floor for the app)
+    - cron: '0 20 * * *'
   workflow_dispatch:
     inputs:
       minutes:

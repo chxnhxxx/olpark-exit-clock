@@ -130,10 +130,15 @@ function show(day, tm, ndTm = '120분') {
   assert.equal(await firstGo(signal),await firstGo([...signal,[1470,400]]));
   // 2026-11-27 measured night: a second exit wave (23:22) must not reuse the first wave's onset.
   const night27 = JSON.parse(fs.readFileSync('records/2026-11-27.json', 'utf8'));
-  const wave = await start({ time: '2026-11-28T12:00:00+09:00', record: { samples: night27.samples } });
+  const wave = await start({ time: '2026-11-28T12:00:00+09:00', record: { samples: night27.samples, shows: night27.shows } });
   await wave.api.replay(undefined, '2026-11-27');
   assert.equal(wave.state().review.recommendation, 22 * 60 + 39);
   assert.equal(wave.state().review.firstRange.text, '21:57~22:32');
+  // after 15 min the range comes from the queue model; the 올림픽홀 crowd (ending later) is left out
+  wave.api.seek(21 * 60 + 42);
+  assert.equal(wave.state().decision.big, '22:18~22:53');
+  assert.match(wave.state().decision.tip, /남은 차 약 1,360대/);
+  assert.match(wave.state().decision.tip, /올림픽홀 공연 차량은 22:40 이후 따로/);
   // cleared = backtest rule: 5-min windows from the surge (21:27), two in a row under 25
   assert.equal(wave.state().review.cleared, 22 * 60 + 42);
   assert.deepEqual(JSON.parse(JSON.stringify(wave.api.nightLog(night27, '2026-11-27'))),

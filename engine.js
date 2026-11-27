@@ -15,6 +15,19 @@
     { match: /우리금융/, from: 15, to: 45, note: '2025년 우리금융아트홀 공연 밤 절반이 이 범위 안에 풀렸어요.' },
   ];
   const SHARED_RANGE = { from: 30, to: 65, note: '2025년 공연 밤 절반은 이 범위 안에 풀렸어요.' };
+  // Queue estimate, fitted on the 2025 backtest (98 show nights, leave-one-out: inside ±17.5 min 71/98 vs 62/98
+  // for the ranges above, mean error 13.9 vs 20.4 min). minutes to clear = A + P·cars parked + O·first-15-min outflow.
+  // cars parked = count at the surge − the morning floor; a later show whose cars only start leaving more than
+  // 65 min after the surge is taken out (its own wave comes later); one ending sooner stays in the queue.
+  const QUEUE = { a: -8.6, parked: 0.0317, out15: 0.138, half: 17.5, apart: 65 };
+  const DEFAULT_FLOOR = 1040; // API count around 05:00 with the lots empty (2026-11-24 02:00 probe: 1,038)
+  const VENUE_WAVES = [
+    { match: /KSPO/, name: 'KSPO DOME', cars: 666, lag: 40 },
+    { match: /올림픽홀/, name: '올림픽홀', cars: 417, lag: 40 },
+    { match: /우리금융/, name: '우리금융아트홀', cars: 166, lag: 10 },
+  ];
+  const OTHER_WAVE = { name: '다른 공연장', cars: 300, lag: 30 };
+  let liveFloor = DEFAULT_FLOOR, activeFloor = DEFAULT_FLOOR;
   const RECONSTRUCTED_RECORD = '2025-12-06';
   const RECORDS_MAIN = 'https://raw.githubusercontent.com/chxnhxxx/olpark-exit-clock/main/records/';
   const API = 'https://www.ksponco.or.kr/online/main/parkingorsApi.do?apiKey=PARKING21803504';
@@ -341,6 +354,27 @@
       .sort((a, b) => b.end - a.end)[0];
     return EXIT_RANGES.find(r => show && r.match.test(show.plc || '')) || SHARED_RANGE;
   }
+  const comma = n => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  function queueEstimate(samples, shows, onset) {
+    const s0 = sampleAt(samples, onset), s15 = sampleAt(samples, onset + 15 * MIN);
+    if (activeFloor === null || !s0 || !s15) return null;
+    let parked = s0[1] - activeFloor;
+    const out15 = s0[1] - s15[1], notes = [];
+    for (const show of shows) {
+      if (!show.end || show.end <= onset) continue;
+      const wave = VENUE_WAVES.find(w => w.match.test(show.plc || '')) || OTHER_WAVE;
+      const leaves = show.end + wave.lag * MIN;
+      if (leaves - onset > QUEUE.apart * MIN) {
+        parked -= wave.cars;
+        notes.push(`${wave.name} 공연 차량은 ${clock(leaves)} 이후 따로 빠질 것으로 보고 뺐어요.`);
+      } else notes.push(`${wave.name} 공연이 ${clock(show.end)}쯤 끝나 그 차량도 이어서 빠져요.`);
+    }
+    parked = Math.max(0, parked);
+    const minutes = QUEUE.a + QUEUE.parked * parked + QUEUE.out15 * out15;
+    if (!(minutes > 0) || out15 < 0) return null;
+    return { from: onset + Math.round(minutes - QUEUE.half) * MIN, to: onset + Math.round(minutes + QUEUE.half) * MIN,
+      note: `남은 차 약 ${comma(Math.round(parked / 10) * 10)}대와 첫 15분 출차 ${comma(out15)}대로 계산했어요. ` + notes.join(' ') };
+  }
   // "Cleared" uses the backtest rule exactly: 5-minute windows counted from the surge, the first one
   // that is followed by a second straight window both under CALM.
   function clearedAt(samples, onset) {
@@ -354,7 +388,12 @@
     const limit = source.base + end * MIN;
     return source.samples.filter(s => s[0] <= limit);
   }
-  function reviewNight(samples, base, shows) {
+  function reviewNight(samples, base, shows, floor = activeFloor) {
+    const saved = activeFloor;
+    activeFloor = floor;
+    try { return reviewNightAt(samples, base, shows); } finally { activeFloor = saved; }
+  }
+  function reviewNightAt(samples, base, shows) {
     const points = [], history = [], surges = [];
     let longest = 0, previous = 779, recommendation = null, firstRange = null, firstOnset = null;
     for (const sample of samples) {
@@ -398,7 +437,8 @@
   function nightLog(doc, day) {
     const { base, samples } = parseRecord(doc, day);
     if (samples.length < 6) return {};
-    const review = reviewNight(samples, base, showsForDay(doc.shows || [], day));
+    const review = reviewNight(samples, base, showsForDay(doc.shows || [], day),
+      Number.isFinite(doc.floor) ? doc.floor : DEFAULT_FLOOR);
     const hm = m => m === null ? null : String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
     const out = {};
     if (review.onset !== null) out.onset = hm(review.onset);
@@ -419,7 +459,8 @@
     const onsetSample = samples.find(s => dropAt(samples, s[0]) >= SURGE);
     const onset = onsetSample ? minuteOf(onsetSample[0]) : null;
     const shows = showsForDay(doc.shows || [], day);
-    const review = reviewNight(samples, base, shows);
+    const floor = kind === 'measured' ? (Number.isFinite(doc.floor) ? doc.floor : DEFAULT_FLOOR) : null;
+    const review = reviewNight(samples, base, shows, floor);
     const lastEnd = Math.max(0, ...shows.map(show => show.end ? minuteOf(show.end) : 0));
     const clamp = m => Math.max(first, Math.min(last, m));
     const steps = onset === null ? [first, clamp(Math.round((first + last) / 2)), last]
@@ -428,7 +469,7 @@
     const labels = onset === null ? ['처음', '중간', '마지막'] :
       [lastEnd > steps[0] ? '종료 전' : '감지 전', '출차 집중', review.recommendation === null ? '이후' : '첫 권장'];
     const [y, m, d] = day.split('-');
-    return { id: day, kind, label: `${y}.${m}.${d}(${DAYS[new Date(base + 12 * 3600000).getUTCDay()]}) ${kind === 'reconstruction' ? '입출차 재현 · 부분 자료' : '실측 기록'}`,
+    return { id: day, kind, floor, label: `${y}.${m}.${d}(${DAYS[new Date(base + 12 * 3600000).getUTCDay()]}) ${kind === 'reconstruction' ? '입출차 재현 · 부분 자료' : '실측 기록'}`,
       base, first, last, start: onset === null ? steps[1] : clamp(onset + 10), steps, labels, samples, shows, review };
   }
   function rates(samples, end) {
@@ -487,14 +528,15 @@
         if (t >= go - (crowded ? 2 : 0) * MIN) go = t + (crowded ? 5 : 3) * MIN;
         if (crowded && !isReplay) liveGo = null;
         // First estimate is a range: half of 2025 show nights (50/98) eased 30–65 min after the surge began.
-        const range = exitRange(shows, onset);
+        const queue = t >= onset + 15 * MIN ? queueEstimate(samples, shows, onset) : null;
+        const range = queue ? { from: (queue.from - onset) / MIN, to: (queue.to - onset) / MIN, note: queue.note } : exitRange(shows, onset);
         const from = Math.max(onset + range.from * MIN, t + (crowded ? 5 : 3) * MIN), to = onset + range.to * MIN;
         const ranged = to - from >= 5 * MIN;
         const head = crowded ? '조금 쉬었다 출발하세요' : '출차 흐름이 잦아들고 있어요';
         if (ranged)
           return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 범위',
             clock(from) + '~' + clock(to), '약 ' + Math.ceil((from - t) / MIN) + '~' + Math.ceil((to - t) / MIN) + '분 뒤',
-            (crowded ? '주차 대수가 빠르게 줄고 있어요. ' : '혼잡이 누그러지고 있어요. ') +
+            (queue ? '' : crowded ? '주차 대수가 빠르게 줄고 있어요. ' : '혼잡이 누그러지고 있어요. ') +
               range.note + ' 실제 흐름을 보고 출발 시각을 확정해요.', go, true);
         return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 시각', clock(go),
           '약 ' + Math.ceil((go - t) / MIN) + '분 뒤',
@@ -569,6 +611,7 @@
     const observedChange = baseline ? samples.at(-1)[1] - baseline[1] : null;
     const observedMinutes = baseline ? Math.round((end - baseline[0]) / MIN) : null;
     const series = end ? rates(history, demo ? time : end) : [];
+    activeFloor = demo ? (source.floor ?? null) : liveFloor;
     const decision = decide(samples, time, shows, selectedShow, drop, onset);
     latestState = { demo, playing, time, minute: demo ? minute : null,
       review: demo ? source.review : null, record: { id: source.id, kind: source.kind, label: source.label,
@@ -640,6 +683,14 @@
     emit();
   }
   function live() { switchMode(false); emit(); refresh(); }
+  // Morning floor (lots empty) saved daily by the recorder; the API count drifts, so use a recent one.
+  async function loadFloor() {
+    try {
+      const doc = await fetchJSON(RECORDS_MAIN + 'floor.json', { timeout: 4000 }).catch(() => fetchJSON('records/floor.json'));
+      if (Number.isSafeInteger(doc?.count) && doc.count >= 0 && Date.now() - Date.parse(doc.day + 'T00:00:00+09:00') < 4 * 24 * 3600000)
+        liveFloor = doc.count;
+    } catch {}
+  }
   function start() {
     if (started) return;
     started = true;
@@ -651,6 +702,7 @@
       if (day) replay(value !== undefined && day === ARCHIVE_SOURCE.id ? value - 900 : value, day);
       else replayLatest(value);
     } else live();
+    loadFloor();
     setInterval(() => {
       if (demo) return;
       poll();
