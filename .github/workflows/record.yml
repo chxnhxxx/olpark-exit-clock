@@ -30,6 +30,7 @@ jobs:
         id: rec
         env:
           RUN_MINUTES: ${{ inputs.minutes || '40' }}
+          GH_TOKEN: ${{ github.token }}
           FORCE: ${{ inputs.force || '0' }}
         run: |
           git config user.name "github-actions[bot]"

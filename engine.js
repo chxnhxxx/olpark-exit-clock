@@ -531,7 +531,9 @@
     if (!isReplay && ((lastOk && t - lastOk > 5 * MIN) || (!lastOk && liveErr)))
       return result('stale', '연결 지연', '주차 정보를 기다리고 있어요', '', '', '', '기관 연결을 다시 시도하거나 공연 기록을 볼 수 있어요.');
     const noShowDay = !isReplay && !shows.length && scheduleDay === dayKey(t);
-    if (d === null) {
+    // Away from any show's exit window there is nothing to wait for: answer from the schedule right away.
+    const quiet = d === null && (isReplay ? shows.length > 0 : scheduleDay === dayKey(t)) && nearShow(shows, t) === false;
+    if (d === null && !quiet) {
       const left = Math.max(1, Math.ceil(5 - (samples.length ? t - samples[0][0] : 0) / MIN));
       if (noShowDay)
         return result('wait', '공연 없음', '오늘은 공원 안 공연이 없어요', '', '', '',
@@ -612,13 +614,15 @@
     const upcoming = shows.filter(show => show.start && show.start > t && (show.start - t < 6 * 60 * MIN || dayKey(show.start) === dayKey(t)))
       .sort((a, b) => a.start - b.start)[0];
     if (!selectedShow && upcoming)
-      return result('show', '공연 전', '오늘 공연이 아직 시작 전이에요', '첫 공연 시작', clock(upcoming.start), '',
-        '현재 대량 출차 신호가 없어요. 빨리 나가려면 남2문 주차장이 좋아요. 2025년 공연 밤 98일 중 81일은 동2문보다 15~20분 먼저 풀렸어요.');
+      return result('calm', '공연 전', '지금은 바로 출발하셔도 돼요', '추천 출발', '지금', `오늘 첫 공연 ${clock(upcoming.start)} 시작`,
+        '지금은 공연이 끝나는 시간이 아니라 출차가 몰리지 않아요. 공연을 보러 온다면 남2문 주차장이 나갈 때 먼저 풀려요(2025년 공연 밤 98일 중 81일, 동2문보다 15~20분 먼저).', t);
     if (noShowDay)
-      return result('calm', '평소 수준', '지금 출발하기 좋아요', '추천 출발', '지금', '',
-        '오늘 등록된 공연이 없고, 최근 5분간 대량 출차 신호도 없어요. 주차 흐름을 계속 확인해요.', t);
-    return result('calm', '평소 수준', '지금 출발하기 좋아요', '추천 출발', '지금', '출차 집중 신호가 없어요',
-      '최근 5분간 주차 대수 변화가 대량 출차 기준에 못 미쳤어요.', t);
+      return result('calm', '공연 없음', '출차가 몰리지 않아요, 바로 출발하셔도 돼요', '추천 출발', '지금', '',
+        d === null ? '오늘 공원 안 공연이 없어 출차가 몰릴 일은 적어요. 주차 흐름은 계속 확인해요.' :
+          '오늘 등록된 공연이 없고, 최근 5분간 대량 출차 신호도 없어요. 주차 흐름을 계속 확인해요.', t);
+    return result('calm', '평소 수준', '출차가 몰리지 않아요, 바로 출발하셔도 돼요', '추천 출발', '지금', '출차 집중 신호가 없어요',
+      d === null ? '지금은 공연이 끝나는 시간이 아니라 출차가 몰리지 않아요. 주차 흐름은 계속 확인해요.' :
+        '최근 5분간 주차 대수 변화가 대량 출차 기준에 못 미쳤어요.', t);
   }
   function pattern(k) {
     const x = patternStart + k / 5, i = Math.floor(x);
@@ -733,7 +737,24 @@
     save(selectionScope, key);
     emit();
   }
-  function live() { switchMode(false); emit(); refresh(); }
+  // On show nights the recorder publishes the last 30 one-minute counts; seeding them lets a fresh screen decide at once.
+  const LIVE_FEED = 'https://api.github.com/repos/chxnhxxx/olpark-exit-clock/contents/live.json?ref=live';
+  async function loadLiveFeed() {
+    try {
+      const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 5000);
+      const r = await fetch(LIVE_FEED, { headers: { Accept: 'application/vnd.github.raw' }, cache: 'no-store', signal: ctrl.signal });
+      clearTimeout(timer);
+      if (!r.ok) return;
+      const doc = await r.json(), now = Date.now();
+      const feed = (Array.isArray(doc?.samples) ? doc.samples : []).filter(s => Array.isArray(s) && Number.isFinite(s[0]) &&
+        Number.isInteger(s[1]) && s[1] >= 0 && s[0] <= now && now - s[0] < 40 * MIN);
+      if (!feed.length || now - feed.at(-1)[0] > 5 * MIN) return;
+      const own = new Set(liveSamples.map(s => Math.round(s[0] / MIN)));
+      liveSamples = [...feed.filter(s => !own.has(Math.round(s[0] / MIN))), ...liveSamples].sort((a, b) => a[0] - b[0]);
+      if (!demo) emit();
+    } catch {}
+  }
+  function live() { switchMode(false); emit(); refresh(); loadLiveFeed(); }
   // Morning floor (lots empty) saved daily by the recorder; the API count drifts, so use a recent one.
   async function loadFloor() {
     try {

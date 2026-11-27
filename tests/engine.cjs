@@ -9,7 +9,7 @@ const archive = fs.readFileSync('data2024.js', 'utf8');
 async function settle() {
   for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve));
 }
-async function start({ time, seed = [], rows = [], parking = 1000, record, records = {}, recordIndex, mainRecords = {}, search = '' }) {
+async function start({ time, seed = [], rows = [], parking = 1000, record, records = {}, recordIndex, mainRecords = {}, search = '', feed = null }) {
   let now = Date.parse(time), state;
   const intervals = [], storage = new Map([['olpark_samples', JSON.stringify(seed.map(([m, v]) => [now + m * MIN, v]))]]);
   class Clock extends Date { static now() { return now; } }
@@ -25,6 +25,7 @@ async function start({ time, seed = [], rows = [], parking = 1000, record, recor
         const doc = mainRecords[url.slice(main.length)];
         return { ok: Boolean(doc), json: async () => doc };
       }
+      if (url.startsWith('https://api.github.com/')) return { ok: Boolean(feed), json: async () => ({ samples: feed.map(([m, v]) => [now + m * MIN, v]) }) };
       if (url === 'records/index.json') return { ok: Boolean(recordIndex), json: async () => recordIndex };
       if (url.startsWith('records/')) {
         const doc = records[url.slice(8, -5)] ?? record;
@@ -57,8 +58,19 @@ function show(day, tm, ndTm = '120분') {
   return { evtSeq: 1, title: '밤 공연', plc: 'KSPO DOME', beginDt: day, endDt: day, tm, ndTm };
 }
 (async () => {
+  // no show nearby: answer at once instead of a waiting screen
   const empty = await start({ time: '2026-11-27T21:00:00+09:00' });
-  assert.equal(empty.state().decision.tone, 'wait');
+  assert.equal(empty.state().decision.tone, 'calm');
+  assert.equal(empty.state().decision.big, '지금');
+  // a show just ended and nothing observed yet: brief check only
+  const fresh = await start({ time: '2026-11-27T21:00:00+09:00', rows: [show('2026-11-27', '19:00')] });
+  assert.equal(fresh.state().decision.tone, 'wait');
+  // the recorder's live feed fills the last minutes, so a fresh screen decides at once
+  const seeded = await start({ time: '2026-11-27T21:30:00+09:00', rows: [show('2026-11-27', '19:00')], parking: 1945,
+    feed: Array.from({ length: 6 }, (_, i) => [i - 6, 2035 - i * 15]) });
+  assert.equal(seeded.state().decision.tone, 'jam');
+  const morning = await start({ time: '2026-11-27T04:45:00+09:00', rows: [show('2026-11-27', '19:00')] });
+  assert.equal(morning.state().decision.big, '지금');
   const ready = await start({ time: '2026-11-27T21:00:00+09:00',
     seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]], rows: [show('2026-11-27', '19:00')] });
   assert.equal(ready.state().drop, 60);
@@ -104,7 +116,7 @@ function show(day, tm, ndTm = '120분') {
   assert.equal(matinee.state().decision.tone, 'calm');
   await ready.tick(15000);
   assert.equal(ready.state().rate, 12);
-  const six = await start({ time: '2026-11-27T21:00:00+09:00', seed: [[-6, 1200]] });
+  const six = await start({ time: '2026-11-27T21:00:00+09:00', seed: [[-6, 1200]], rows: [show('2026-11-27', '19:00')] });
   assert.equal(six.state().drop, null);
   assert.equal(six.state().decision.tone, 'wait');
   const night = await start({ time: '2026-12-31T23:59:00+09:00',

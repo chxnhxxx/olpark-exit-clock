@@ -57,6 +57,41 @@ def fetch():
     return int(value)
 
 
+LIVE_URL = "https://api.github.com/repos/{repo}/contents/live.json"
+_live_sha = {}
+
+
+def push_live(tail):
+    """Publish the last 30 one-minute samples to the `live` branch so a freshly opened app can start at once.
+    Only inside GitHub Actions with a token; any failure is ignored (the minute record is unaffected)."""
+    token, repo = os.environ.get("GH_TOKEN"), os.environ.get("GITHUB_REPOSITORY")
+    if os.environ.get("GITHUB_ACTIONS") != "true" or not token or not repo:
+        return
+    import base64
+    url = LIVE_URL.format(repo=repo)
+    head = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
+            "User-Agent": "olpark-exit-clock recorder"}
+    try:
+        if "sha" not in _live_sha:
+            try:
+                with urllib.request.urlopen(urllib.request.Request(url + "?ref=live", headers=head), timeout=15) as r:
+                    _live_sha["sha"] = json.loads(r.read())["sha"]
+            except Exception:
+                _live_sha["sha"] = None
+        body = json.dumps({"updated": int(time.time() * 1000), "samples": tail[-30:]}, separators=(",", ":"))
+        data = {"message": "실시간 미리 채움", "branch": "live",
+                "content": base64.b64encode(body.encode()).decode()}
+        if _live_sha.get("sha"):
+            data["sha"] = _live_sha["sha"]
+        req = urllib.request.Request(url, data=json.dumps(data).encode(), method="PUT",
+                                     headers={**head, "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            _live_sha["sha"] = json.loads(r.read())["content"]["sha"]
+    except Exception as e:
+        _live_sha.pop("sha", None)
+        print(f"미리 채움 저장 실패 {type(e).__name__}")
+
+
 def morning_floor(day, old=None):
     path = pathlib.Path("records/floor.json")
     if path.exists():
@@ -213,6 +248,7 @@ def main():
     old_path = pathlib.Path(f"records/{day.isoformat()}.json")
     known = {m: v for m, v in json.loads(old_path.read_text(encoding="utf-8")).get("samples", [])} if old_path.exists() else {}
     decisions = {}
+    tail = []
     deadline = min(start + dt.timedelta(minutes=RUN_MINUTES), stop)
     while True:
         t = now_kst()
@@ -221,6 +257,9 @@ def main():
             break
         try:
             samples[m] = fetch()
+            tail.append([int(t.timestamp() * 1000), samples[m]])
+            if m % 2 == 0:
+                push_live(tail)
             log_decisions(decisions, t, night_log(day, shows, {**known, **samples}))
         except Exception as e:
             errors += 1
