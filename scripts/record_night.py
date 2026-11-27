@@ -89,6 +89,39 @@ def log_decisions(log, now, verdict):
             print(f"{now:%H:%M} 판단 기록 {key}: {verdict[key]}")
 
 
+def save_forecast(day, shows):
+    """Before the night: save the schedule-based forecast once, pushed right away so its time is on record."""
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return  # only the scheduled job writes to the repository
+    path = pathlib.Path(f"records/{day.isoformat()}.json")
+    for attempt in range(6):
+        subprocess.run(["git", "fetch", "-q", "origin", "main"], check=True)
+        subprocess.run(["git", "reset", "-q", "--hard", "origin/main"], check=True)
+        old = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        if "forecast" in old:
+            return
+        try:
+            out = subprocess.run(["node", "scripts/night_log.cjs", "forecast"], capture_output=True, text=True, timeout=30,
+                                 input=json.dumps({"day": day.isoformat(), "shows": shows}, ensure_ascii=False), encoding="utf-8")
+            items = json.loads(out.stdout)
+        except Exception as e:
+            print(f"예보 저장 실패 {type(e).__name__}")
+            return
+        doc = {"day": day.isoformat(),
+               "source": "한국체육산업개발 실시간 주차현황 API(parkingorsApi.do), 세 주차장 합계, GitHub Actions에서 1분 간격 수집",
+               "unit": "samples = [그날 0시부터 지난 분, 주차 중 대수]", "shows": shows, "samples": [], **old,
+               "forecast": {"loggedAt": f"{now_kst():%Y-%m-%d %H:%M}", "basis": "공식 일정 종료 + 공연장별 출차 지연, 2025 공연장별 범위",
+                            "items": items}}
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        subprocess.run(["git", "add", str(path)], check=True)
+        subprocess.run(["git", "commit", "-q", "-m", f"공연 밤 사전 예보 {day.isoformat()}"], check=True)
+        if subprocess.run(["git", "push", "-q", "origin", "HEAD:main"]).returncode == 0:
+            print("예보 저장: " + " / ".join(f"{i['title'][:12]} {i.get('clearRange', '종료 모름')}" for i in items))
+            return
+        time.sleep(5 + attempt * 5)
+
+
 def merge_and_push(day, shows, samples, decisions=None):
     path = pathlib.Path(f"records/{day.isoformat()}.json")
     for attempt in range(6):
@@ -103,6 +136,7 @@ def merge_and_push(day, shows, samples, decisions=None):
             "unit": "samples = [그날 0시부터 지난 분, 주차 중 대수]",
             "shows": shows or old.get("shows", []),
             **({"floor": f} if (f := morning_floor(day, old)) is not None else {}),
+            **({"forecast": old["forecast"]} if "forecast" in old else {}),
             "samples": sorted([m, v] for m, v in merged.items()),
         }
         # decisions made live on this night: keep whichever run logged each one first
@@ -171,6 +205,7 @@ def main():
         print(f"{day}: 올림픽공원 등록 공연 없음, 기록 안 함")
         return
     print(f"{day}: " + " / ".join(s["title"] for s in shows))
+    save_forecast(day, shows)
     samples, errors = {}, 0
     old_path = pathlib.Path(f"records/{day.isoformat()}.json")
     known = {m: v for m, v in json.loads(old_path.read_text(encoding="utf-8")).get("samples", [])} if old_path.exists() else {}

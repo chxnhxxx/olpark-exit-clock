@@ -75,6 +75,15 @@
   const DAYS = '일월화수목금토';
   // Fixed-date public holidays (MM-DD). Lunar holidays move every year and are not inferred.
   const HOLIDAYS = new Set(['01-01', '03-01', '05-05', '06-06', '08-15', '10-03', '10-09', '12-25']);
+  // Lunar holidays, substitute holidays and election days through 2028 (fixed list, no upkeep needed).
+  const HOLIDAY_DATES = new Set([
+    '2026-02-16', '2026-02-17', '2026-02-18', '2026-03-02', '2026-05-24', '2026-05-25', '2026-06-03', '2026-08-17',
+    '2026-09-24', '2026-09-25', '2026-09-26', '2026-10-05',
+    '2027-02-06', '2027-02-07', '2027-02-08', '2027-02-09', '2027-05-13', '2027-08-16', '2027-09-14', '2027-09-15',
+    '2027-09-16', '2027-10-04', '2027-10-11', '2027-12-27',
+    '2028-01-26', '2028-01-27', '2028-01-28', '2028-04-12', '2028-05-02', '2028-10-02', '2028-10-04',
+  ]);
+  const isHoliday = day => HOLIDAYS.has(day.slice(5)) || HOLIDAY_DATES.has(day);
   const closed = /휴연|휴관|공연\s*없음|공연\s*없습니다|공연\s*취소/;
   function timesIn(text) {
     // The institution uses 7:30PM, 9:00:00PM, 오후 7시 30분, and multiple slots in one clause.
@@ -120,7 +129,7 @@
     const weekday = DAYS[new Date(day + 'T00:00:00Z').getUTCDay()];
     const isHolidayWord = word => /^(?:공휴일|휴일|hol)$/i.test(word);
     // On a public holiday, a holiday clause replaces the weekday's own clause.
-    const holiday = HOLIDAYS.has(day.slice(5)) && anchors.some(a => isHolidayWord(a[1]));
+    const holiday = isHoliday(day) && anchors.some(a => isHolidayWord(a[1]));
     const clauseOf = i => normalized.slice(anchors[i].index + anchors[i][0].length, anchors[i + 1]?.index);
     const common = timesIn(normalized.slice(0, anchors[0].index));
     const slots = [];
@@ -213,6 +222,8 @@
       const published = duration ? Number(duration[1] || 0) * 60 + Number(duration[2] || duration[3] || 0) : null;
       // No published running time: assume a typical concert length so the night can still be guided.
       const minutes = published || (/KSPO|DOME|체조/i.test(item.plc) ? 150 : 120);
+      // Festivals end stage by stage; a single assumed end time would hide their biggest exits.
+      const festival = /페스티벌|페스타|festival|fest\b|축제/i.test(item.title) || /잔디마당|[,·]|\s및\s/.test(item.plc);
       const { slots, source: timeSource } = sessionsFor(item, day);
       for (const slot of slots) {
         const start = slot === null ? null : midnight + slot.start * MIN;
@@ -221,7 +232,8 @@
           /^NOL티켓/.test(item.ndTmSource || '') ? 'NOL티켓의 공연 소요시간' :
           /^KOPIS/.test(item.ndTmSource || '') ? '공연예술통합전산망의 공연 소요시간' : '공식 일정의 공연 소요시간';
         const show = { evtSeq: item.evtSeq ?? null, title: item.title.normalize('NFKC').replace(/\s+/g, ' ').trim(), plc: item.plc.trim(),
-          genre: item.cultureGenre || '', day, start, end: explicitEnd ?? (start === null ? null : start + minutes * MIN),
+          genre: item.cultureGenre || '', day, start, festival,
+          end: explicitEnd ?? (start === null || (festival && !published) ? null : start + minutes * MIN),
           endBasis, endEstimated: !explicitEnd && (!published || /약|예상|내외/.test(rawDuration)),
           endDefault: !explicitEnd && !published, tm: item.tm || '', ndTm: rawDuration, timeSource };
         shows.set(showKey(show), show);
@@ -342,9 +354,9 @@
   function nearShow(shows, t) {
     let unknown = false;
     for (const show of shows) {
-      const end = show.end ?? (show.start ? show.start + 120 * MIN : null);
+      const end = show.festival && show.end === null ? null : show.end ?? (show.start ? show.start + 120 * MIN : null);
       if (end === null) { unknown = true; continue; }
-      if (t >= end - 15 * MIN && t <= end + 150 * MIN) return true;
+      if (t >= end - 45 * MIN && t <= end + 150 * MIN) return true;
     }
     return unknown ? null : false;
   }
@@ -447,6 +459,19 @@
     if (review.cleared !== null) out.cleared = hm(review.cleared);
     return out;
   }
+  // Before the show: when each audience should start leaving and the range it should clear in, from the
+  // schedule alone (end + venue's usual delay, then the venue's 2025 range). Saved ahead by the recorder.
+  function nightForecast(doc, day) {
+    const shows = showsForDay(doc.shows || [], day).filter(show => show.start !== null);
+    return shows.map(show => {
+      const wave = VENUE_WAVES.find(w => w.match.test(show.plc)) || OTHER_WAVE;
+      const out = { title: show.title, plc: show.plc, start: clock(show.start), end: show.end === null ? null : clock(show.end),
+        endBasis: show.end === null ? (show.festival ? '축제: 무대별 종료라 모름' : '모름') : show.endBasis };
+      if (show.end === null) return out;
+      const surge = show.end + wave.lag * MIN, range = exitRange([show], surge);
+      return { ...out, surgeAround: clock(surge), clearRange: clock(surge + range.from * MIN) + '~' + clock(surge + range.to * MIN) };
+    });
+  }
   async function loadRecord(day) {
     if (!/^\d{4}-\d\d-\d\d$/.test(day || '')) return null;
     const file = day + '.json';
@@ -515,7 +540,11 @@
         `주차 대수를 1분마다 받아 5분 변화를 계산해요. 약 ${left}분 뒤부터 안내해요. 화면을 오래 닫아 두면 처음부터 다시 모아요.`);
     }
     const scheduleKnown = isReplay ? shows.length > 0 : scheduleDay === dayKey(t);
-    if (onset !== null && scheduleKnown && nearShow(shows, t) === false)
+    // Only a one-off blip is hidden; a sustained exit (two back-to-back 5-min drops of 60+, or 300+ in 30 min)
+    // is guided even without a matching show (unlisted events, shows ending early).
+    const sustained = d !== null && ((dropAt(samples, t - 5 * MIN) ?? 0) >= SURGE && d >= SURGE ||
+      (sampleAt(samples, t - 30 * MIN) && sampleAt(samples, t - 30 * MIN)[1] - sampleAt(samples, t)?.[1] >= 300));
+    if (onset !== null && scheduleKnown && !sustained && nearShow(shows, t) === false)
       return result('calm', '공원 출차', '공연과 무관한 일시적 출차예요', '추천 출발', '지금', '',
         '이 시간 앞뒤로 끝나는 공연이 없어요. 퇴근이나 시설 마감 무렵 잠깐 늘어난 출차로 보고 혼잡으로 안내하지 않아요.', t);
     if (onset !== null) {
@@ -537,7 +566,8 @@
           return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 범위',
             clock(from) + '~' + clock(to), '약 ' + Math.ceil((from - t) / MIN) + '~' + Math.ceil((to - t) / MIN) + '분 뒤',
             (queue ? '' : crowded ? '주차 대수가 빠르게 줄고 있어요. ' : '혼잡이 누그러지고 있어요. ') +
-              range.note + ' 실제 흐름을 보고 출발 시각을 확정해요.', go, true);
+              range.note + (shows.some(x => x.festival) ? ' 축제는 무대별로 끝나 출차가 여러 번 올 수 있어요.' : '') +
+              ' 실제 흐름을 보고 출발 시각을 확정해요.', go, true);
         return result(crowded ? 'jam' : 'easing', crowded ? '혼잡' : '완화 중', head, '예상 출발 시각', clock(go),
           '약 ' + Math.ceil((go - t) / MIN) + '분 뒤',
           crowded ? '평소보다 출차가 길게 이어지고 있어요. 줄어드는 속도가 잦아들 때까지 출발 시각을 늦춰 안내해요.' : '혼잡이 누그러지고 있어요. 관측값을 보고 출발 시각을 조정해요.', go, true);
@@ -559,8 +589,16 @@
       return result('show', '공연 중', '공연이 진행 중이에요', '예상 종료', (guessed ? '약 ' : '') + clock(end), '',
         guessed ? '러닝타임이 공개되지 않아 보통 공연 길이로 종료 시각을 추정했어요. 실제 출차 흐름을 보고 바로 고쳐 안내해요.' :
           `${(selectedShow || shows.find(show => show.end === end))?.endBasis || '공연 일정'}을 기준으로 안내해요.`);
-    if (end && t <= end + 110 * MIN)
+    if (end && t <= end + 110 * MIN) {
+      // Opened mid-exit: a surge before the screen was on can't be seen, so don't say "now" until 30 min of watching.
+      const watched = samples.length ? (t - samples[0][0]) / MIN : 0;
+      const parked = activeFloor === null || !samples.length ? null : samples.at(-1)[1] - activeFloor;
+      if (watched < 30 && t >= end)
+        return result('soon', '흐름 확인 중', '출차 흐름을 확인하고 있어요', '추천 출발', '확인 중', '',
+          (parked !== null && parked >= 300 ? `주차장에 아직 약 ${comma(Math.round(parked / 10) * 10)}대가 남아 있어요. ` : '') +
+          '화면을 켜기 전에 출차가 시작됐을 수 있어 바로 출발을 권하지 않아요. 몇 분만 지켜보면 알려 드려요.');
       return result('soon', '공연 종료 후', '곧 출차가 몰릴 수 있어요', '추천 출발', '지금', '공연 종료 후 집중 구간', '아직 대량 출차 신호가 없어요. 종료 후 흐름이 빠르게 바뀔 수 있어요.', t);
+    }
     const upcoming = shows.filter(show => show.start && show.start > t && (show.start - t < 6 * 60 * MIN || dayKey(show.start) === dayKey(t)))
       .sort((a, b) => a.start - b.start)[0];
     if (!selectedShow && upcoming)
@@ -717,5 +755,5 @@
     if (latestState) fn(latestState);
     return () => listeners.delete(fn);
   }
-  window.exitClock = { nightLog, subscribe, start, live, replay, replayLatest, seek, togglePlay, refresh, selectShow, showKey, showsForDay, loadRecordIndex };
+  window.exitClock = { nightLog, nightForecast, subscribe, start, live, replay, replayLatest, seek, togglePlay, refresh, selectShow, showKey, showsForDay, loadRecordIndex };
 })();

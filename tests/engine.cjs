@@ -78,6 +78,21 @@ function show(day, tm, ndTm = '120분') {
   assert.equal(blip.state().drop, 60);
   assert.equal(blip.state().decision.tone, 'calm');
   assert.equal(blip.state().decision.alarm, false);
+  // a festival with only a start time has an unknown end, so its evening exit is not hidden
+  const fest = await start({ time: '2026-11-27T22:05:00+09:00',
+    seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]],
+    rows: [{ ...show('2026-11-27', '11:00', ''), title: '서울재즈페스티벌 2026', plc: '88잔디마당, KSPO DOME' }] });
+  assert.equal(fest.state().shows[0].end, null);
+  assert.equal(fest.state().decision.tone, 'jam');
+  // a sustained exit with no listed show (two back-to-back 5-min drops of 60+) is still guided
+  const unlisted = await start({ time: '2026-11-27T22:05:00+09:00',
+    seed: Array.from({ length: 11 }, (_, i) => [i - 11, 1200 - i * 13]) });
+  assert.equal(unlisted.state().decision.tone, 'jam');
+  // opened right after a show ended: no big "지금" until it has watched for 30 min
+  const late = await start({ time: '2026-11-27T21:20:00+09:00',
+    seed: [[-6, 2000], [-5, 1990], [-4, 1980], [-3, 1970], [-2, 1960], [-1, 1950]], parking: 1945, rows: [show('2026-11-27', '19:00')] });
+  assert.equal(late.state().decision.big, '확인 중');
+  assert.match(late.state().decision.tip, /남아 있어요/);
   const matinee = await start({ time: '2026-11-27T22:05:00+09:00',
     seed: [[-5, 1060], [-4, 1048], [-3, 1036], [-2, 1024], [-1, 1012]], rows: [show('2026-11-27', '15:00')] });
   assert.equal(matinee.state().decision.tone, 'calm');

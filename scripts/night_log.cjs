@@ -12,4 +12,5 @@ vm.createContext(box);
 vm.runInContext(fs.readFileSync(path.join(root, 'data2024.js'), 'utf8'), box);
 vm.runInContext(fs.readFileSync(path.join(root, 'engine.js'), 'utf8'), box);
 const doc = JSON.parse(fs.readFileSync(0, 'utf8'));
-process.stdout.write(JSON.stringify(box.window.exitClock.nightLog(doc, doc.day)) + '\n');
+const fn = process.argv[2] === 'forecast' ? 'nightForecast' : 'nightLog';
+process.stdout.write(JSON.stringify(box.window.exitClock[fn](doc, doc.day)) + '\n');
