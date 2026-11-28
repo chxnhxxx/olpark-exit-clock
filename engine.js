@@ -591,7 +591,10 @@
       return result('show', '공연 중', '공연이 진행 중이에요', '예상 종료', (guessed ? '약 ' : '') + clock(end), '',
         guessed ? '러닝타임이 공개되지 않아 보통 공연 길이로 종료 시각을 추정했어요. 실제 출차 흐름을 보고 바로 고쳐 안내해요.' :
           `${(selectedShow || shows.find(show => show.end === end))?.endBasis || '공연 일정'}을 기준으로 안내해요.`);
-    if (end && t <= end + 110 * MIN) {
+    // How long after a show's end its exits matter: 2025 peaks came +10 min (우리금융아트홀, half gone by +30) vs +50~75 min (big halls).
+    const endedShow = shows.find(show => show.end === end);
+    const exitWindow = endedShow && /우리금융/.test(endedShow.plc || '') && !selectedShow ? 40 : 110;
+    if (end && t <= end + exitWindow * MIN) {
       // Opened mid-exit: a surge before the screen was on can't be seen, so don't say "now" until 30 min of watching.
       const watched = samples.length ? (t - samples[0][0]) / MIN : 0;
       const parked = activeFloor === null || !samples.length ? null : samples.at(-1)[1] - activeFloor;
@@ -609,12 +612,13 @@
           '낮 공연이 끝나고 다음 공연 관객이 들어오는 시간이라, 주차 대수 합계로는 나가는 차가 덜 보여요. ' +
           '2025년 이런 날 12일 중 4일은 출구로 5분에 70~100대가 나가는데도 감소폭이 혼잡 기준에 못 미쳤어요. ' +
           '공연 종료 뒤 약 1시간은 출구가 붐빌 수 있어요.');
-      return result('soon', '공연 종료 후', '곧 출차가 몰릴 수 있어요', '추천 출발', '지금', '공연 종료 후 집중 구간', '아직 대량 출차 신호가 없어요. 종료 후 흐름이 빠르게 바뀔 수 있어요.', t);
+      return result('soon', '공연 종료 후', '지금은 출차가 많지 않아요', '추천 출발', '지금', '공연 종료 후 집중 구간',
+        '아직 대량 출차 신호가 없어 지금 나가면 막히지 않아요. 공연이 끝난 지 얼마 안 돼 곧 몰릴 수 있어요.', t);
     }
     const upcoming = shows.filter(show => show.start && show.start > t && (show.start - t < 6 * 60 * MIN || dayKey(show.start) === dayKey(t)))
       .sort((a, b) => a.start - b.start)[0];
     if (!selectedShow && upcoming)
-      return result('calm', '공연 전', '지금은 바로 출발하셔도 돼요', '추천 출발', '지금', `오늘 첫 공연 ${clock(upcoming.start)} 시작`,
+      return result('calm', '공연 전', '지금은 바로 출발하셔도 돼요', '추천 출발', '지금', `다음 공연 ${clock(upcoming.start)} 시작`,
         '지금은 공연이 끝나는 시간이 아니라 출차가 몰리지 않아요. 공연을 보러 온다면 남2문 주차장이 나갈 때 먼저 풀려요(2025년 공연 밤 98일 중 81일, 동2문보다 15~20분 먼저).', t);
     if (noShowDay)
       return result('calm', '공연 없음', '출차가 몰리지 않아요, 바로 출발하셔도 돼요', '추천 출발', '지금', '',

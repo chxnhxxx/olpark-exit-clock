@@ -69,6 +69,11 @@ function show(day, tm, ndTm = '120분') {
   const seeded = await start({ time: '2026-11-27T21:30:00+09:00', rows: [show('2026-11-27', '19:00')], parking: 1945,
     feed: Array.from({ length: 6 }, (_, i) => [i - 6, 2035 - i * 15]) });
   assert.equal(seeded.state().decision.tone, 'jam');
+  // 46 min after a small-hall matinee with evening shows coming: no "exits soon" warning
+  const smallEnd = await start({ time: '2026-11-28T17:46:00+09:00', seed: Array.from({ length: 35 }, (_, i) => [i - 35, 1500 + i * 3]), parking: 1610,
+    rows: [{ ...show('2026-11-28', '15:00'), plc: '올림픽공원 우리금융아트홀' }, { ...show('2026-11-28', '18:00'), evtSeq: 2, title: '저녁 공연' }] });
+  assert.equal(smallEnd.state().decision.chip, '공연 전');
+  assert.equal(smallEnd.state().decision.big, '지금');
   const morning = await start({ time: '2026-11-27T04:45:00+09:00', rows: [show('2026-11-27', '19:00')] });
   assert.equal(morning.state().decision.big, '지금');
   const ready = await start({ time: '2026-11-27T21:00:00+09:00',
